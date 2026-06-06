@@ -1,5 +1,7 @@
 package io.github.thgrcarvalho.zelo.infrastructure.web;
 
+import io.github.thgrcarvalho.idempotency.Idempotent;
+import io.github.thgrcarvalho.ratelimit.RateLimit;
 import io.github.thgrcarvalho.zelo.application.DsrService;
 import io.github.thgrcarvalho.zelo.domain.dsr.DsrRequest;
 import io.github.thgrcarvalho.zelo.domain.dsr.DsrStatus;
@@ -33,6 +35,8 @@ public class DsrRequestController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @RateLimit(requests = 100, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
+    @Idempotent
     public RequestResponse create(ApiKeyPrincipal principal, @Valid @RequestBody CreateRequest request) {
         // v1 only supports DELETE; the type field is accepted for forward compatibility.
         DsrRequest created = dsrService.createDeletionRequest(principal.id(), request.externalId());
@@ -45,6 +49,8 @@ public class DsrRequestController {
     }
 
     @PostMapping("/{id}/fulfill")
+    @RateLimit(requests = 100, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
+    @Idempotent
     public RequestResponse fulfill(ApiKeyPrincipal principal, @PathVariable UUID id,
                                    @RequestBody(required = false) FulfillRequest request) {
         Map<String, Object> proof = request == null ? null : request.proof();

@@ -1,5 +1,7 @@
 package io.github.thgrcarvalho.zelo.infrastructure.web;
 
+import io.github.thgrcarvalho.idempotency.Idempotent;
+import io.github.thgrcarvalho.ratelimit.RateLimit;
 import io.github.thgrcarvalho.zelo.application.SubjectService;
 import io.github.thgrcarvalho.zelo.domain.subject.Subject;
 import io.github.thgrcarvalho.zelo.infrastructure.security.ApiKeyPrincipal;
@@ -24,6 +26,8 @@ public class SubjectController {
     }
 
     @PostMapping
+    @RateLimit(requests = 100, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
+    @Idempotent
     public SubjectResponse upsert(ApiKeyPrincipal principal, @Valid @RequestBody UpsertSubjectRequest request) {
         Subject subject = subjectService.upsert(principal.id(), request.externalId());
         return new SubjectResponse(subject.getId(), subject.getExternalId(), subject.getCreatedAt());

@@ -1,5 +1,7 @@
 package io.github.thgrcarvalho.zelo.infrastructure.web;
 
+import io.github.thgrcarvalho.idempotency.Idempotent;
+import io.github.thgrcarvalho.ratelimit.RateLimit;
 import io.github.thgrcarvalho.zelo.application.PurposeService;
 import io.github.thgrcarvalho.zelo.domain.subject.LegalBasis;
 import io.github.thgrcarvalho.zelo.domain.subject.Purpose;
@@ -31,6 +33,8 @@ public class PurposeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @RateLimit(requests = 100, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
+    @Idempotent
     public PurposeResponse create(ApiKeyPrincipal principal, @Valid @RequestBody CreatePurposeRequest request) {
         Purpose purpose = purposeService.create(
                 principal.id(), request.key(), request.description(), request.legalBasis());

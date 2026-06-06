@@ -39,7 +39,7 @@ class DsrEngineIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void clean() {
-        jdbc.execute("TRUNCATE audit_log, consent_events, dsr_requests, subjects, purposes RESTART IDENTITY CASCADE");
+        jdbc.execute("TRUNCATE audit_log, consent_events, dsr_requests, outbox_event, subjects, purposes RESTART IDENTITY CASCADE");
     }
 
     @Test

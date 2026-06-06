@@ -1,5 +1,7 @@
 package io.github.thgrcarvalho.zelo.infrastructure.web;
 
+import io.github.thgrcarvalho.idempotency.Idempotent;
+import io.github.thgrcarvalho.ratelimit.RateLimit;
 import io.github.thgrcarvalho.zelo.application.ConsentReport;
 import io.github.thgrcarvalho.zelo.application.ConsentService;
 import io.github.thgrcarvalho.zelo.domain.consent.ConsentAction;
@@ -28,6 +30,8 @@ public class ConsentController {
     }
 
     @PostMapping
+    @RateLimit(requests = 100, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
+    @Idempotent
     public ConsentReportResponse record(ApiKeyPrincipal principal, @Valid @RequestBody RecordConsentRequest request) {
         ConsentReport report = consentService.record(
                 principal.id(), request.externalId(), request.purposeKey(), request.action(), request.source());

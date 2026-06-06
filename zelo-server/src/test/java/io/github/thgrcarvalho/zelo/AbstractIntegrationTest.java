@@ -3,20 +3,25 @@ package io.github.thgrcarvalho.zelo;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
 
 /**
- * Shared Postgres container for integration tests (real Postgres, no H2 — the
- * schema uses native enums and jsonb). The container only starts for classes
- * annotated {@link IntegrationTest}, which carries both the Testcontainers
- * extension and the {@code -DrunIntegrationTests=true} gate; the extension finds
- * this inherited static {@code @Container} field by walking the class hierarchy.
+ * Shared Postgres for integration tests (real Postgres, no H2 — the schema uses
+ * native enums and jsonb). A single container is started once for the whole JVM
+ * and never stopped between classes, so a background poller (the outbox) always
+ * has a database to talk to; Testcontainers' Ryuk reaps it at JVM exit. The
+ * container only starts when {@code -DrunIntegrationTests=true}, the same flag
+ * the {@link IntegrationTest} gate keys off, so the default build stays
+ * Docker-free.
  */
 public abstract class AbstractIntegrationTest {
 
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES =
-            new PostgreSQLContainer<>("postgres:16-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+
+    static {
+        if (Boolean.getBoolean("runIntegrationTests")) {
+            POSTGRES.start();
+        }
+    }
 
     @DynamicPropertySource
     static void datasourceProps(DynamicPropertyRegistry registry) {

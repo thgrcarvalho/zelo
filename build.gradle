@@ -53,6 +53,7 @@ subprojects {
         // default `./gradlew test` stays fast and Docker-free. Run the full suite
         // with: ./gradlew test -DrunIntegrationTests=true
         systemProperty 'runIntegrationTests', System.getProperty('runIntegrationTests', 'false')
-        environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
+        // Ryuk stays enabled: the integration tests share one long-lived Postgres
+        // container (see AbstractIntegrationTest) that Ryuk reaps at JVM exit.
     }
 }

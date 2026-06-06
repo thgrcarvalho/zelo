@@ -27,6 +27,13 @@ spring:
 server:
   port: ${ZELO_PORT:8080}
 
+outbox:
+  # The signed-webhook dispatcher. The poller delivers queued events; failures
+  # are retried with backoff up to max-attempts, then parked as FAILED.
+  poll-interval-ms: ${ZELO_OUTBOX_POLL_MS:5000}
+  batch-size: 100
+  max-attempts: 5
+
 management:
   endpoints:
     web:
