@@ -1,0 +1,58 @@
+// Root build for the Zelo monorepo.
+//
+// Three modules:
+//   - zelo-server               the control plane (Spring Boot app, runs on the box)
+//   - zelo-spring-boot-starter  the library integrators embed in their own app
+//   - zelo-demo                 a sample integrator that proves the loop end-to-end
+//
+// Conventions match the author's other repos: groupId io.github.thgrcarvalho,
+// Java 21 toolchain, Spring Boot 3.4.5 managed via the dependency-management plugin.
+// The Spring Boot plugin itself is applied only by the two application modules.
+
+plugins {
+    id 'org.springframework.boot' version '3.4.5' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+}
+
+allprojects {
+    group = 'io.github.thgrcarvalho'
+    version = '0.1.0'
+
+    repositories {
+        mavenLocal()   // the dogfooded starters are published here
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom 'org.springframework.boot:spring-boot-dependencies:3.4.5'
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        // -parameters keeps constructor/parameter names for @ConfigurationProperties
+        // binding and Spring MVC argument resolution.
+        options.compilerArgs << '-parameters'
+    }
+
+    tasks.named('test') {
+        useJUnitPlatform()
+        // Integration tests (Testcontainers) are gated behind this flag so the
+        // default `./gradlew test` stays fast and Docker-free. Run the full suite
+        // with: ./gradlew test -DrunIntegrationTests=true
+        systemProperty 'runIntegrationTests', System.getProperty('runIntegrationTests', 'false')
+        environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
+    }
+}

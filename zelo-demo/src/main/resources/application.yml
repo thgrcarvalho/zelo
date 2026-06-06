@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: zelo-demo
+
+server:
+  port: ${DEMO_PORT:8081}

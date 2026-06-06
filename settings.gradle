@@ -1,0 +1,5 @@
+rootProject.name = 'zelo'
+
+include 'zelo-server'
+include 'zelo-spring-boot-starter'
+include 'zelo-demo'

@@ -1,0 +1,13 @@
+apply plugin: 'org.springframework.boot'
+
+description = 'Zelo demo integrator — a sample app that embeds the Zelo starter and proves the full DELETE loop.'
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation project(':zelo-spring-boot-starter')
+
+    // M5 adds the fake user table + persistence that the delete loop operates on.
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

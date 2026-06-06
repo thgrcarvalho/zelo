@@ -1,0 +1,30 @@
+apply plugin: 'org.springframework.boot'
+
+description = 'Zelo control plane — consent ledger, hash-chained audit log, DSR engine, signed webhook dispatcher.'
+
+dependencies {
+    // Web + validation + actuator (health endpoint)
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Persistence: JPA for the mutable aggregates (api_keys, subjects, purposes,
+    // dsr_requests); plain JDBC for the append-only consent ledger + audit log,
+    // where explicit SQL enforces the append-only + hash-chain discipline.
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // The dogfooded libraries (outbox, idempotency, rate-limit, pix-webhook-validator)
+    // arrive at M3, the milestone that provides the OutboxPublisher delivery hook and
+    // applies @Idempotent / @RateLimit to the write endpoints.
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:junit-jupiter:1.21.3'
+    testImplementation 'org.testcontainers:postgresql:1.21.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

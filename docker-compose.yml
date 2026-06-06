@@ -1,0 +1,25 @@
+# Local development stack for Zelo.
+#
+# M0: Postgres only — enough to run zelo-server locally and to back the
+# Testcontainers integration tests' sibling. The full self-host stack
+# (zelo-server + zelo-demo images behind the same network) is added at M7.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: zelo-postgres
+    environment:
+      POSTGRES_DB: zelo
+      POSTGRES_USER: zelo
+      POSTGRES_PASSWORD: zelo
+    ports:
+      - "5432:5432"
+    volumes:
+      - zelo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zelo -d zelo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  zelo-pgdata:

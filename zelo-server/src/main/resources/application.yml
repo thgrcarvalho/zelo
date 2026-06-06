@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: zelo-server
+  datasource:
+    url: ${ZELO_DB_URL:jdbc:postgresql://localhost:5432/zelo}
+    username: ${ZELO_DB_USER:zelo}
+    password: ${ZELO_DB_PASSWORD:zelo}
+  jpa:
+    # Flyway owns the schema; Hibernate only validates entities against it.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${ZELO_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+
+zelo:
+  dsr:
+    # Deadline window for fulfilling a data-subject request, in days. LGPD does
+    # not fix a single universal number; Art. 19 §3 sets a 15-day window for
+    # access requests, which we adopt as the default SLA for deletion too.
+    delete-deadline-days: 15
