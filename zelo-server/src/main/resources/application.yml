@@ -18,8 +18,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
   jackson:
+    # The public API uses snake_case (external_id, purpose_key, legal_basis).
+    property-naming-strategy: SNAKE_CASE
     serialization:
       write-dates-as-timestamps: false
+    default-property-inclusion: non_null
 
 server:
   port: ${ZELO_PORT:8080}
@@ -38,4 +41,11 @@ zelo:
     # Deadline window for fulfilling a data-subject request, in days. LGPD does
     # not fix a single universal number; Art. 19 §3 sets a 15-day window for
     # access requests, which we adopt as the default SLA for deletion too.
-    delete-deadline-days: 15
+    delete-deadline-days: ${ZELO_DELETE_DEADLINE_DAYS:15}
+  bootstrap:
+    # When api-key is set, an API key with this raw value is seeded on startup
+    # (idempotent). Leave blank in production; provision keys out-of-band.
+    api-key: ${ZELO_BOOTSTRAP_API_KEY:}
+    name: ${ZELO_BOOTSTRAP_NAME:default}
+    webhook-url: ${ZELO_BOOTSTRAP_WEBHOOK_URL:}
+    webhook-secret: ${ZELO_BOOTSTRAP_WEBHOOK_SECRET:}

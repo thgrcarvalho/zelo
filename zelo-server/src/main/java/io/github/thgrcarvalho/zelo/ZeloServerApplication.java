@@ -2,6 +2,7 @@ package io.github.thgrcarvalho.zelo;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -13,6 +14,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * operations on it via signed webhooks.</p>
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 @EnableScheduling
 public class ZeloServerApplication {
 
