@@ -3,6 +3,7 @@ package io.github.thgrcarvalho.zelo.infrastructure.web;
 import io.github.thgrcarvalho.zelo.application.error.BadRequestException;
 import io.github.thgrcarvalho.zelo.application.error.ConflictException;
 import io.github.thgrcarvalho.zelo.application.error.ResourceNotFoundException;
+import io.github.thgrcarvalho.zelo.domain.dsr.InvalidDsrTransitionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -36,6 +37,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError conflict(ConflictException e) {
+        return ApiError.of(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidDsrTransitionException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError invalidTransition(InvalidDsrTransitionException e) {
         return ApiError.of(HttpStatus.CONFLICT, e.getMessage());
     }
 
