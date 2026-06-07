@@ -26,12 +26,23 @@ public class ZeloProperties {
          */
         private int deleteDeadlineDays = 15;
 
+        /** How often the overdue sweep runs, in milliseconds (default 60s). */
+        private long overdueSweepIntervalMs = 60_000;
+
         public int getDeleteDeadlineDays() {
             return deleteDeadlineDays;
         }
 
         public void setDeleteDeadlineDays(int deleteDeadlineDays) {
             this.deleteDeadlineDays = deleteDeadlineDays;
+        }
+
+        public long getOverdueSweepIntervalMs() {
+            return overdueSweepIntervalMs;
+        }
+
+        public void setOverdueSweepIntervalMs(long overdueSweepIntervalMs) {
+            this.overdueSweepIntervalMs = overdueSweepIntervalMs;
         }
     }
 

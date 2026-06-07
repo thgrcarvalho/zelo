@@ -49,6 +49,7 @@ zelo:
     # not fix a single universal number; Art. 19 §3 sets a 15-day window for
     # access requests, which we adopt as the default SLA for deletion too.
     delete-deadline-days: ${ZELO_DELETE_DEADLINE_DAYS:15}
+    overdue-sweep-interval-ms: ${ZELO_OVERDUE_SWEEP_MS:60000}
   bootstrap:
     # When api-key is set, an API key with this raw value is seeded on startup
     # (idempotent). Leave blank in production; provision keys out-of-band.
