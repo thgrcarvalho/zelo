@@ -12,6 +12,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -93,6 +94,20 @@ class DsrEngineIntegrationTest extends AbstractIntegrationTest {
         mvc.perform(get("/v1/requests/00000000-0000-0000-0000-000000000000")
                         .header(HttpHeaders.AUTHORIZATION, KEY))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void creatingASecondDeletionRequestReturnsTheExistingOpenOne() throws Exception {
+        String first = createRequest("user-1");
+        String second = createRequest("user-1");
+        // Idempotent: the in-flight request is returned, not a duplicate.
+        assertThat(second).isEqualTo(first);
+
+        // And no duplicate audit entries: subject.registered + dsr.delete.requested only.
+        mvc.perform(get("/v1/audit/verify").header(HttpHeaders.AUTHORIZATION, KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true))
+                .andExpect(jsonPath("$.entries_checked").value(2));
     }
 
     private String createRequest(String externalId) throws Exception {

@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -34,6 +35,9 @@ public class DsrService {
     /** Outbox-event header keys carrying the routing context to the delivery hook. */
     public static final String WEBHOOK_HEADER_API_KEY_ID = "zelo-api-key-id";
     public static final String WEBHOOK_HEADER_REQUEST_ID = "zelo-request-id";
+
+    /** Statuses for which a deletion request is still in flight. */
+    private static final List<DsrStatus> OPEN_STATUSES = List.of(DsrStatus.RECEIVED, DsrStatus.DISPATCHED);
 
     private final DsrRequestRepository requests;
     private final SubjectService subjectService;
@@ -55,6 +59,16 @@ public class DsrService {
     @Transactional
     public DsrRequest createDeletionRequest(UUID apiKeyId, String externalId) {
         Subject subject = subjectService.upsert(apiKeyId, externalId);
+
+        // Idempotent: if a deletion is already in flight for this subject, return it
+        // rather than fanning out a duplicate request + webhook + audit entry. The
+        // uq_open_delete_per_subject partial index backstops a concurrent race.
+        DsrRequest open = requests.findFirstByApiKeyIdAndSubjectIdAndStatusInOrderByCreatedAtDesc(
+                apiKeyId, subject.getId(), OPEN_STATUSES).orElse(null);
+        if (open != null) {
+            return open;
+        }
+
         Instant now = Instant.now();
         Instant deadline = now.plus(Duration.ofDays(properties.getDsr().getDeleteDeadlineDays()));
 

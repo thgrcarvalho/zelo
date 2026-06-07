@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/consents")
@@ -34,7 +35,8 @@ public class ConsentController {
     @Idempotent
     public ConsentReportResponse record(ApiKeyPrincipal principal, @Valid @RequestBody RecordConsentRequest request) {
         ConsentReport report = consentService.record(
-                principal.id(), request.externalId(), request.purposeKey(), request.action(), request.source());
+                principal.id(), request.externalId(), request.purposeKey(),
+                request.action(), request.source(), request.metadata());
         return ConsentReportResponse.from(report);
     }
 
@@ -50,7 +52,8 @@ public class ConsentController {
             @NotBlank String externalId,
             @NotBlank String purposeKey,
             @NotNull ConsentAction action,
-            String source) {
+            String source,
+            Map<String, Object> metadata) {
     }
 
     public record ConsentStateResponse(

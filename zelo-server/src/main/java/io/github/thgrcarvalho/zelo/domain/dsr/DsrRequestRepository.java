@@ -19,4 +19,12 @@ public interface DsrRequestRepository extends JpaRepository<DsrRequest, UUID> {
      * than one unbounded transaction.
      */
     List<DsrRequest> findByStatusInAndDeadlineAtBefore(List<DsrStatus> statuses, Instant cutoff, Pageable pageable);
+
+    /**
+     * The most recent still-open request for a subject, if any. Lets us make
+     * creating a deletion request idempotent: a second call while one is already
+     * in flight returns the existing request rather than opening a duplicate.
+     */
+    Optional<DsrRequest> findFirstByApiKeyIdAndSubjectIdAndStatusInOrderByCreatedAtDesc(
+            UUID apiKeyId, UUID subjectId, List<DsrStatus> statuses);
 }

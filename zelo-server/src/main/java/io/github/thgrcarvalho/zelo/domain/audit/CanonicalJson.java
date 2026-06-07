@@ -19,7 +19,9 @@ import java.util.List;
  * between. This canonicalizer removes every one of those degrees of freedom:</p>
  *
  * <ul>
- *   <li>object keys are emitted in Unicode code-point order;</li>
+ *   <li>object keys are sorted in UTF-16 code-unit order — Java's natural
+ *       {@link String} ordering, the same rule as RFC 8785 (JCS) — so an
+ *       independent re-implementation following this spec produces identical bytes;</li>
  *   <li>numbers are normalized via {@link java.math.BigDecimal#stripTrailingZeros()}
  *       so {@code 1}, {@code 1.0} and {@code 1.00} all canonicalize identically;</li>
  *   <li>strings use a single fixed JSON escaping;</li>

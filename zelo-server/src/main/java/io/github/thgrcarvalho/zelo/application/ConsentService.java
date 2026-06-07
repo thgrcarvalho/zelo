@@ -1,6 +1,8 @@
 package io.github.thgrcarvalho.zelo.application;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.thgrcarvalho.zelo.domain.audit.AuditEventType;
 import io.github.thgrcarvalho.zelo.domain.audit.AuditTrail;
 import io.github.thgrcarvalho.zelo.domain.consent.ConsentAction;
@@ -43,21 +45,35 @@ public class ConsentService {
     @Transactional
     public ConsentReport record(UUID apiKeyId, String externalId, String purposeKey,
                                 ConsentAction action, String source) {
+        return record(apiKeyId, externalId, purposeKey, action, source, null);
+    }
+
+    /**
+     * As {@link #record(UUID, String, String, ConsentAction, String)} but with optional
+     * PII-free {@code metadata}, stored on the ledger event <em>and</em> folded into the
+     * audit payload so it is covered by the tamper-evident hash chain.
+     */
+    @Transactional
+    public ConsentReport record(UUID apiKeyId, String externalId, String purposeKey,
+                                ConsentAction action, String source, Map<String, Object> metadata) {
         Subject subject = subjectService.upsert(apiKeyId, externalId);
         Purpose purpose = purposeService.require(apiKeyId, purposeKey);
         Instant now = Instant.now();
 
-        ledger.append(new ConsentEvent(null, subject.getId(), purpose.getId(), action, source, now, null));
+        JsonNode metaNode = (metadata == null || metadata.isEmpty()) ? null : json.valueToTree(metadata);
+        ledger.append(new ConsentEvent(null, subject.getId(), purpose.getId(), action, source, now, metaNode));
 
         String eventType = action == ConsentAction.GRANT
                 ? AuditEventType.CONSENT_GRANTED
                 : AuditEventType.CONSENT_WITHDRAWN;
-        auditTrail.append(apiKeyId, eventType,
-                json.createObjectNode()
-                        .put("externalId", externalId)
-                        .put("purposeKey", purposeKey)
-                        .put("source", source),
-                now);
+        ObjectNode payload = json.createObjectNode()
+                .put("externalId", externalId)
+                .put("purposeKey", purposeKey)
+                .put("source", source);
+        if (metaNode != null) {
+            payload.set("metadata", metaNode);
+        }
+        auditTrail.append(apiKeyId, eventType, payload, now);
 
         return report(apiKeyId, subject, externalId, null, null);
     }

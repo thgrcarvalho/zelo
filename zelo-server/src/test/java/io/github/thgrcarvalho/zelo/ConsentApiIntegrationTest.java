@@ -85,6 +85,32 @@ class ConsentApiIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void recordsConsentMetadataIntoTheTamperEvidentAudit() throws Exception {
+        mvc.perform(post("/v1/purposes").header(HttpHeaders.AUTHORIZATION, KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"key\":\"billing\",\"description\":\"Billing\",\"legal_basis\":\"CONTRACT\"}"))
+                .andExpect(status().isCreated());
+
+        mvc.perform(post("/v1/consents").header(HttpHeaders.AUTHORIZATION, KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"external_id\":\"user-1\",\"purpose_key\":\"billing\",\"action\":\"GRANT\","
+                                + "\"source\":\"checkout\",\"metadata\":{\"ip\":\"203.0.113.7\"}}"))
+                .andExpect(status().isOk());
+
+        // The metadata is folded into the audited consent.granted entry (index 2:
+        // purpose.created, subject.registered, consent.granted)...
+        mvc.perform(get("/v1/audit").header(HttpHeaders.AUTHORIZATION, KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[2].event_type").value("consent.granted"))
+                .andExpect(jsonPath("$[2].payload.metadata.ip").value("203.0.113.7"));
+
+        // ...and the chain still verifies with the metadata inside it.
+        mvc.perform(get("/v1/audit/verify").header(HttpHeaders.AUTHORIZATION, KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true));
+    }
+
+    @Test
     void unknownPurposeReturns404() throws Exception {
         mvc.perform(post("/v1/consents").header(HttpHeaders.AUTHORIZATION, KEY)
                         .contentType(MediaType.APPLICATION_JSON)

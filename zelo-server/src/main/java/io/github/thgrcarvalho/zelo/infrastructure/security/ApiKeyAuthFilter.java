@@ -50,8 +50,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
         ApiKey apiKey = match.get();
-        request.setAttribute(PRINCIPAL_ATTRIBUTE, new ApiKeyPrincipal(
-                apiKey.getId(), apiKey.getName(), apiKey.getWebhookUrl(), apiKey.getWebhookSecret()));
+        request.setAttribute(PRINCIPAL_ATTRIBUTE, new ApiKeyPrincipal(apiKey.getId(), apiKey.getName()));
         chain.doFilter(request, response);
     }
 
