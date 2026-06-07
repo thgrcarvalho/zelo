@@ -1,6 +1,17 @@
 spring:
   application:
     name: zelo-demo
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
 
 server:
   port: ${DEMO_PORT:8081}
+
+# How this integrator talks to Zelo. The api-key + webhook-secret must match the
+# api_key Zelo provisioned for this integrator (see the compose stack).
+zelo:
+  api-url: ${ZELO_API_URL:http://localhost:8080}
+  api-key: ${ZELO_API_KEY:demo-key}
+  webhook-secret: ${ZELO_WEBHOOK_SECRET:demo-secret}
+  webhook-path: /zelo/webhooks

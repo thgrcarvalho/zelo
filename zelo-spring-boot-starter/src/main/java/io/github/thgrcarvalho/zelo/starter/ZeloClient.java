@@ -1,5 +1,6 @@
 package io.github.thgrcarvalho.zelo.starter;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -29,6 +30,22 @@ public class ZeloClient {
         factory.setConnectTimeout(5_000);
         factory.setReadTimeout(10_000);
         this.http = builder.requestFactory(factory).build();
+    }
+
+    /**
+     * Open a DELETE data-subject request at Zelo for {@code externalId}. Zelo will
+     * fire the {@code dsr.delete.requested} webhook back to this app. Returns the
+     * new request's id.
+     */
+    public String requestDeletion(String externalId) {
+        JsonNode response = http.post()
+                .uri(apiUrl + "/v1/requests")
+                .header(HttpHeaders.AUTHORIZATION, apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("external_id", externalId, "type", "DELETE"))
+                .retrieve()
+                .body(JsonNode.class);
+        return response == null ? null : response.path("id").asText(null);
     }
 
     /**
