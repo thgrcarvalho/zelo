@@ -13,6 +13,7 @@ import io.github.thgrcarvalho.zelo.domain.dsr.DsrStatus;
 import io.github.thgrcarvalho.zelo.domain.subject.Subject;
 import io.github.thgrcarvalho.zelo.infrastructure.config.ZeloProperties;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
@@ -100,10 +101,13 @@ public class DsrService {
 
     /**
      * Advance a request to DISPATCHED once its webhook has actually been delivered.
-     * Called by the delivery hook; idempotent so an at-least-once redelivery (or a
-     * request already fulfilled/dispatched) is a safe no-op.
+     * Called by the delivery hook (on the outbox poller thread); idempotent so an
+     * at-least-once redelivery — or a request already fulfilled/dispatched — is a
+     * safe no-op. Runs in its OWN transaction so it commits independently of the
+     * poller's batch transaction (one event's flip cannot roll back already-delivered
+     * events) and releases the audit advisory lock promptly.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markDispatchedIfPending(UUID apiKeyId, UUID requestId) {
         requests.findByIdAndApiKeyId(requestId, apiKeyId).ifPresent(request -> {
             if (request.getStatus() == DsrStatus.RECEIVED) {
@@ -114,6 +118,29 @@ public class DsrService {
                         now);
             }
         });
+    }
+
+    /**
+     * Flag a single request OVERDUE if it is still open, in its own transaction.
+     * Re-reads the row (so a request fulfilled since the sweep's work-list query is
+     * skipped) and relies on @Version to reject a flush that races a concurrent
+     * fulfill. Returns true if it was flagged.
+     */
+    @Transactional
+    public boolean markOverdueIfOpen(UUID apiKeyId, UUID requestId) {
+        DsrRequest request = requests.findByIdAndApiKeyId(requestId, apiKeyId).orElse(null);
+        if (request == null
+                || (request.getStatus() != DsrStatus.RECEIVED && request.getStatus() != DsrStatus.DISPATCHED)) {
+            return false;
+        }
+        Instant now = Instant.now();
+        request.markOverdue();
+        auditTrail.append(apiKeyId, AuditEventType.DSR_DELETE_OVERDUE,
+                json.createObjectNode()
+                        .put("requestId", request.getId().toString())
+                        .put("deadline", HashChain.formatOccurredAt(request.getDeadlineAt())),
+                now);
+        return true;
     }
 
     private DsrRequest findOwned(UUID apiKeyId, UUID requestId) {

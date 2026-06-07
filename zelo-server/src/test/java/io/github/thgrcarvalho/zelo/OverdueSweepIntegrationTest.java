@@ -78,6 +78,20 @@ class OverdueSweepIntegrationTest extends AbstractIntegrationTest {
         assertThat(dsrService.get(apiKeyId, request.getId()).getStatus()).isEqualTo(DsrStatus.FULFILLED);
     }
 
+    @Test
+    void bumpsTheOptimisticLockVersionOnEachTransition() {
+        DsrRequest request = dsrService.createDeletionRequest(apiKeyId, "user-v");
+        long created = version(request.getId());
+
+        dsrService.fulfill(apiKeyId, request.getId(), Map.of("deletedRows", 1));
+
+        assertThat(version(request.getId())).isGreaterThan(created);
+    }
+
+    private long version(UUID requestId) {
+        return jdbc.queryForObject("SELECT version FROM dsr_requests WHERE id = ?", Long.class, requestId);
+    }
+
     private void backdateDeadline(UUID requestId) {
         jdbc.update("UPDATE dsr_requests SET deadline_at = now() - interval '1 day' WHERE id = ?", requestId);
     }

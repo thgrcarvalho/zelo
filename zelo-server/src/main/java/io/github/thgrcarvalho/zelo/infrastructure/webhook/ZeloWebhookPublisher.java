@@ -60,9 +60,16 @@ public class ZeloWebhookPublisher implements OutboxPublisher {
             log.warn("Integrator {} has no webhook URL configured; dropping event {}", apiKeyId, event.eventType());
             return;
         }
+        if (target.secret() == null || target.secret().isBlank()) {
+            // Fail closed: never send an unsigned (empty-key) webhook. Dropping the
+            // event lets the request go OVERDUE, surfacing the misconfiguration.
+            log.error("Integrator {} has a webhook URL but no signing secret; refusing to send {}",
+                    apiKeyId, event.eventType());
+            return;
+        }
 
         byte[] body = event.payload().getBytes(StandardCharsets.UTF_8);
-        String signature = WebhookSigner.sign(target.secret() == null ? "" : target.secret(), body);
+        String signature = WebhookSigner.sign(target.secret(), body);
 
         restClient.post()
                 .uri(target.url())
@@ -77,7 +84,14 @@ public class ZeloWebhookPublisher implements OutboxPublisher {
 
         String requestIdRaw = event.headers().get(DsrService.WEBHOOK_HEADER_REQUEST_ID);
         if (requestIdRaw != null) {
-            dsrService.markDispatchedIfPending(apiKeyId, UUID.fromString(requestIdRaw));
+            try {
+                dsrService.markDispatchedIfPending(apiKeyId, UUID.fromString(requestIdRaw));
+            } catch (RuntimeException e) {
+                // Best-effort: the webhook is already delivered. A concurrent fulfill
+                // (optimistic conflict) or transient error must not provoke a redelivery.
+                log.warn("Delivered {} but could not mark request {} dispatched: {}",
+                        event.eventType(), requestIdRaw, e.toString());
+            }
         }
     }
 

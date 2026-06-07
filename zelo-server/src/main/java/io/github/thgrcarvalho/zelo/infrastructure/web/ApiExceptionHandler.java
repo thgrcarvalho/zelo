@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -50,6 +51,13 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError dataIntegrity(DataIntegrityViolationException e) {
         return ApiError.of(HttpStatus.CONFLICT, "The request conflicts with existing data");
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError concurrentModification(ObjectOptimisticLockingFailureException e) {
+        // e.g. two fulfill calls racing the same request — the loser lands here.
+        return ApiError.of(HttpStatus.CONFLICT, "The request was modified concurrently; please retry");
     }
 
     @ExceptionHandler(BadRequestException.class)

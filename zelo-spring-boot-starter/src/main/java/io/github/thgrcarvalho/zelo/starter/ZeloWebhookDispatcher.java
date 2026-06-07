@@ -41,6 +41,7 @@ public class ZeloWebhookDispatcher implements SmartInitializingSingleton {
             for (Method method : type.getMethods()) {
                 ZeloWebhook annotation = AnnotationUtils.findAnnotation(method, ZeloWebhook.class);
                 if (annotation != null) {
+                    validateSignature(method);
                     handlers.put(annotation.value(), new Handler(beanFactory.getBean(beanName), method));
                     log.info("Registered @ZeloWebhook handler {}#{} for event '{}'",
                             type.getSimpleName(), method.getName(), annotation.value());
@@ -62,7 +63,7 @@ public class ZeloWebhookDispatcher implements SmartInitializingSingleton {
             throw new NoHandlerRegisteredException(eventType);
         }
         Object[] args = handler.method().getParameterCount() == 0 ? new Object[0] : new Object[]{event};
-        try {
+        try {  // signature validated at registration (see validateSignature)
             return handler.method().invoke(handler.bean(), args);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause();
@@ -70,6 +71,17 @@ public class ZeloWebhookDispatcher implements SmartInitializingSingleton {
                 throw ex;
             }
             throw new IllegalStateException("Webhook handler failed", cause);
+        }
+    }
+
+    private static void validateSignature(Method method) {
+        Class<?>[] params = method.getParameterTypes();
+        boolean ok = params.length == 0
+                || (params.length == 1 && params[0].isAssignableFrom(ZeloDeletionRequest.class));
+        if (!ok) {
+            throw new IllegalStateException("@ZeloWebhook method " + method.getDeclaringClass().getName()
+                    + "#" + method.getName() + " must take no arguments or a single "
+                    + ZeloDeletionRequest.class.getSimpleName() + " parameter");
         }
     }
 
