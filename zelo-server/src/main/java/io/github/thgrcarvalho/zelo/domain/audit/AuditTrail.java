@@ -20,10 +20,13 @@ public interface AuditTrail {
     AuditEntry append(UUID apiKeyId, String eventType, JsonNode payload, Instant occurredAt);
 
     /**
-     * Export a chain in order. {@code from}/{@code to} (inclusive/exclusive) bound
-     * {@code occurred_at}; either may be {@code null} for an open end.
+     * Export a chain in id order, paginated. {@code from}/{@code to}
+     * (inclusive/exclusive) bound {@code occurred_at}; either may be {@code null}
+     * for an open end. {@code afterId} (exclusive) is the keyset cursor — pass the
+     * last id seen to fetch the next page — or {@code null} to start at the head.
+     * At most {@code limit} entries are returned.
      */
-    List<AuditEntry> list(UUID apiKeyId, Instant from, Instant to);
+    List<AuditEntry> list(UUID apiKeyId, Instant from, Instant to, Long afterId, int limit);
 
     /** Recompute the entire chain for {@code apiKeyId} and report its integrity. */
     ChainVerification verify(UUID apiKeyId);

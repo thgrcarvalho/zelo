@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.PreparedStatement;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -33,9 +34,9 @@ import java.util.UUID;
 @Repository
 public class JdbcAuditTrail implements AuditTrail {
 
-    // Namespace for pg_advisory_xact_lock(int4, int4) so audit locks never
-    // collide with any other advisory lock in the system.
-    private static final int ADVISORY_LOCK_NAMESPACE = 0x5A41; // 'ZA' — Zelo Audit
+    // Cursor fetch size for streaming chain verification, so heap stays bounded on
+    // long chains. Honoured only inside the (read-only) transaction verify runs in.
+    private static final int VERIFY_FETCH_SIZE = 1_000;
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
@@ -49,10 +50,10 @@ public class JdbcAuditTrail implements AuditTrail {
     @Transactional
     public AuditEntry append(UUID apiKeyId, String eventType, JsonNode payload, Instant occurredAt) {
         // Serialize appends to this chain for the duration of the surrounding
-        // transaction. Released automatically on commit/rollback.
-        jdbc.query("SELECT pg_advisory_xact_lock(?, ?)",
-                (ResultSetExtractor<Void>) rs -> null,
-                ADVISORY_LOCK_NAMESPACE, apiKeyId.hashCode());
+        // transaction (released on commit/rollback). The 64-bit lock key folds the
+        // whole UUID — far lower collision odds than the 32-bit UUID.hashCode().
+        long lockKey = apiKeyId.getMostSignificantBits() ^ apiKeyId.getLeastSignificantBits();
+        jdbc.query("SELECT pg_advisory_xact_lock(?)", (ResultSetExtractor<Void>) rs -> null, lockKey);
 
         String prevHash = jdbc.query(
                 "SELECT entry_hash FROM audit_log WHERE api_key_id = ? ORDER BY id DESC LIMIT 1",
@@ -75,7 +76,7 @@ public class JdbcAuditTrail implements AuditTrail {
     }
 
     @Override
-    public List<AuditEntry> list(UUID apiKeyId, Instant from, Instant to) {
+    public List<AuditEntry> list(UUID apiKeyId, Instant from, Instant to, Long afterId, int limit) {
         StringBuilder sql = new StringBuilder(
                 "SELECT id, api_key_id, event_type, payload, occurred_at, prev_hash, entry_hash "
                         + "FROM audit_log WHERE api_key_id = ?");
@@ -89,47 +90,58 @@ public class JdbcAuditTrail implements AuditTrail {
             sql.append(" AND occurred_at < ?");
             args.add(OffsetDateTime.ofInstant(to, ZoneOffset.UTC));
         }
-        sql.append(" ORDER BY id ASC");
+        if (afterId != null) {
+            // Keyset pagination: callers page by passing the last id they saw.
+            sql.append(" AND id > ?");
+            args.add(afterId);
+        }
+        sql.append(" ORDER BY id ASC LIMIT ?");
+        args.add(limit);
         return jdbc.query(sql.toString(), entryRowMapper(), args.toArray());
     }
 
     @Override
     public ChainVerification verify(UUID apiKeyId) {
-        // Read raw rows in chain order and recompute. We read the payload as the
-        // stored jsonb text (not a mapped object) so verification depends on
-        // nothing but the bytes on disk.
-        List<RawRow> rows = jdbc.query(
-                "SELECT id, event_type, payload::text AS payload, occurred_at, prev_hash, entry_hash "
-                        + "FROM audit_log WHERE api_key_id = ? ORDER BY id ASC",
-                (rs, n) -> new RawRow(
-                        rs.getLong("id"),
-                        rs.getString("event_type"),
-                        rs.getString("payload"),
-                        rs.getObject("occurred_at", OffsetDateTime.class).toInstant(),
-                        rs.getString("prev_hash"),
-                        rs.getString("entry_hash")),
-                apiKeyId);
-
-        String expectedPrev = HashChain.GENESIS_PREV_HASH;
-        long checked = 0;
-        for (RawRow row : rows) {
-            checked++;
-            if (!expectedPrev.equals(row.prevHash())) {
-                return ChainVerification.broken(checked, row.id(),
-                        "prev_hash does not match the previous entry's entry_hash — the chain link is broken "
-                                + "(an entry was inserted, deleted or reordered).");
-            }
-            String recomputed = HashChain.entryHash(
-                    row.prevHash(), row.eventType(),
-                    CanonicalJson.canonicalize(row.payload()),
-                    HashChain.formatOccurredAt(row.occurredAt()));
-            if (!recomputed.equals(row.entryHash())) {
-                return ChainVerification.broken(checked, row.id(),
-                        "entry_hash does not match the recomputed hash — this entry was tampered with.");
-            }
-            expectedPrev = row.entryHash();
-        }
-        return ChainVerification.valid(checked);
+        // Stream rows in chain order and recompute, holding only the running link in
+        // memory (never the whole chain) so verification stays O(1) heap regardless of
+        // chain length. The payload is read as stored jsonb text so the result depends
+        // on nothing but the bytes on disk. Cursor streaming needs both the fetch size
+        // and the read-only transaction this runs in; it stops at the first broken link.
+        return jdbc.query(
+                con -> {
+                    PreparedStatement ps = con.prepareStatement(
+                            "SELECT id, event_type, payload::text AS payload, occurred_at, prev_hash, entry_hash "
+                                    + "FROM audit_log WHERE api_key_id = ? ORDER BY id ASC");
+                    ps.setFetchSize(VERIFY_FETCH_SIZE);
+                    ps.setObject(1, apiKeyId);
+                    return ps;
+                },
+                (ResultSetExtractor<ChainVerification>) rs -> {
+                    String expectedPrev = HashChain.GENESIS_PREV_HASH;
+                    long checked = 0;
+                    while (rs.next()) {
+                        checked++;
+                        long id = rs.getLong("id");
+                        String prevHash = rs.getString("prev_hash");
+                        String entryHash = rs.getString("entry_hash");
+                        if (!expectedPrev.equals(prevHash)) {
+                            return ChainVerification.broken(checked, id,
+                                    "prev_hash does not match the previous entry's entry_hash — the chain link "
+                                            + "is broken (an entry was inserted, deleted or reordered).");
+                        }
+                        String recomputed = HashChain.entryHash(
+                                prevHash, rs.getString("event_type"),
+                                CanonicalJson.canonicalize(rs.getString("payload")),
+                                HashChain.formatOccurredAt(
+                                        rs.getObject("occurred_at", OffsetDateTime.class).toInstant()));
+                        if (!recomputed.equals(entryHash)) {
+                            return ChainVerification.broken(checked, id,
+                                    "entry_hash does not match the recomputed hash — this entry was tampered with.");
+                        }
+                        expectedPrev = entryHash;
+                    }
+                    return ChainVerification.valid(checked);
+                });
     }
 
     private RowMapper<AuditEntry> entryRowMapper() {
@@ -149,9 +161,5 @@ public class JdbcAuditTrail implements AuditTrail {
         } catch (Exception e) {
             throw new IllegalStateException("Stored audit payload is not valid JSON", e);
         }
-    }
-
-    private record RawRow(long id, String eventType, String payload, Instant occurredAt,
-                          String prevHash, String entryHash) {
     }
 }

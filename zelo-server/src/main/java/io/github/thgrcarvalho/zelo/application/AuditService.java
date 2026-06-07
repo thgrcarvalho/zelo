@@ -21,8 +21,8 @@ public class AuditService {
     }
 
     @Transactional(readOnly = true)
-    public List<AuditEntry> export(UUID apiKeyId, Instant from, Instant to) {
-        return auditTrail.list(apiKeyId, from, to);
+    public List<AuditEntry> export(UUID apiKeyId, Instant from, Instant to, Long afterId, int limit) {
+        return auditTrail.list(apiKeyId, from, to, afterId, limit);
     }
 
     @Transactional(readOnly = true)

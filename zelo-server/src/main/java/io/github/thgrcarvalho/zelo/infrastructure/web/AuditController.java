@@ -19,20 +19,29 @@ import java.util.List;
 @RequestMapping("/v1/audit")
 public class AuditController {
 
+    private static final int MAX_PAGE = 1000;
+
     private final AuditService auditService;
 
     public AuditController(AuditService auditService) {
         this.auditService = auditService;
     }
 
-    /** Export the caller's audit trail, optionally bounded by occurred_at (ISO-8601). */
+    /**
+     * Export the caller's audit trail, paginated. Optionally bounded by occurred_at
+     * (ISO-8601 {@code from}/{@code to}). Page with {@code after_id} (the last id seen)
+     * and {@code limit} (default 200, capped at {@value #MAX_PAGE}).
+     */
     @GetMapping
     public List<AuditEntryResponse> export(ApiKeyPrincipal principal,
                                            @RequestParam(required = false) String from,
-                                           @RequestParam(required = false) String to) {
+                                           @RequestParam(required = false) String to,
+                                           @RequestParam(name = "after_id", required = false) Long afterId,
+                                           @RequestParam(defaultValue = "200") int limit) {
         Instant fromInstant = parseInstant(from, "from");
         Instant toInstant = parseInstant(to, "to");
-        return auditService.export(principal.id(), fromInstant, toInstant).stream()
+        int capped = Math.min(Math.max(limit, 1), MAX_PAGE);
+        return auditService.export(principal.id(), fromInstant, toInstant, afterId, capped).stream()
                 .map(AuditEntryResponse::from)
                 .toList();
     }
