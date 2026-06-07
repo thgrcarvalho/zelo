@@ -1,5 +1,7 @@
 package io.github.thgrcarvalho.zelo.infrastructure.webhook;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.thgrcarvalho.outbox.OutboxEvent;
 import io.github.thgrcarvalho.outbox.OutboxPublisher;
 import io.github.thgrcarvalho.zelo.application.DsrService;
@@ -11,7 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -36,10 +38,13 @@ public class ZeloWebhookPublisher implements OutboxPublisher {
     private final JdbcTemplate jdbc;
     private final DsrService dsrService;
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
 
-    public ZeloWebhookPublisher(JdbcTemplate jdbc, DsrService dsrService, RestClient.Builder restClientBuilder) {
+    public ZeloWebhookPublisher(JdbcTemplate jdbc, DsrService dsrService,
+                                RestClient.Builder restClientBuilder, ObjectMapper objectMapper) {
         this.jdbc = jdbc;
         this.dsrService = dsrService;
+        this.objectMapper = objectMapper;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5_000);
         factory.setReadTimeout(10_000);
@@ -68,7 +73,12 @@ public class ZeloWebhookPublisher implements OutboxPublisher {
             return;
         }
 
-        byte[] body = event.payload().getBytes(StandardCharsets.UTF_8);
+        // Stamp the (signed) body with the event type and a per-send timestamp: the
+        // event type drives the receiver's handler routing, and sentAt lets it reject
+        // stale replays — both must live inside the signed bytes, not in unsigned
+        // headers. sentAt is refreshed on every delivery attempt, so a retry after a
+        // transient skew is fresh rather than permanently rejected.
+        byte[] body = stampBody(event.payload(), event.eventType());
         String signature = WebhookSigner.sign(target.secret(), body);
 
         restClient.post()
@@ -93,6 +103,14 @@ public class ZeloWebhookPublisher implements OutboxPublisher {
                         event.eventType(), requestIdRaw, e.toString());
             }
         }
+    }
+
+    /** Add the signed routing/freshness fields ({@code event}, {@code sentAt}) to the body. */
+    private byte[] stampBody(String payload, String eventType) throws Exception {
+        ObjectNode node = (ObjectNode) objectMapper.readTree(payload);
+        node.put("event", eventType);
+        node.put("sentAt", Instant.now().toString());
+        return objectMapper.writeValueAsBytes(node);
     }
 
     private WebhookTarget loadTarget(UUID apiKeyId) {

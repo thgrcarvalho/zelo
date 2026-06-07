@@ -96,6 +96,8 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
         byte[] body = capturedBody.get();
         String payload = new String(body);
         assertThat(payload).contains("\"requestId\":\"" + id + "\"").contains("\"externalId\":\"user-1\"");
+        // The event type and a per-send timestamp are carried inside the signed body.
+        assertThat(payload).contains("\"event\":\"dsr.delete.requested\"").contains("\"sentAt\":");
         assertThat(capturedEvent.get()).isEqualTo("dsr.delete.requested");
 
         // The signature validates with pix-webhook-validator (the receiver's library).

@@ -14,7 +14,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 
 /**
@@ -30,19 +32,20 @@ public class ZeloWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(ZeloWebhookController.class);
     private static final String SIGNATURE_HEADER = "X-Zelo-Signature";
-    private static final String EVENT_HEADER = "X-Zelo-Event";
 
     private final PixWebhookValidator validator;
     private final ZeloWebhookDispatcher dispatcher;
     private final ZeloClient client;
     private final ObjectMapper objectMapper;
+    private final long toleranceSeconds;
 
     public ZeloWebhookController(PixWebhookValidator validator, ZeloWebhookDispatcher dispatcher,
-                                 ZeloClient client, ObjectMapper objectMapper) {
+                                 ZeloClient client, ObjectMapper objectMapper, ZeloProperties properties) {
         this.validator = validator;
         this.dispatcher = dispatcher;
         this.client = client;
         this.objectMapper = objectMapper;
+        this.toleranceSeconds = properties.getWebhookToleranceSeconds();
     }
 
     @PostMapping("${zelo.webhook-path:/zelo/webhooks}")
@@ -60,8 +63,20 @@ public class ZeloWebhookController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        String eventType = request.getHeader(EVENT_HEADER);
         JsonNode payload = objectMapper.readTree(body);
+
+        // Replay defence: the signed body carries a per-send sentAt. Reject anything
+        // outside the tolerance window — Zelo re-sends with a fresh stamp so a transient
+        // skew self-heals, while a captured-and-replayed delivery is refused.
+        Instant sentAt = parseInstant(text(payload, "sentAt"));
+        if (sentAt == null
+                || Math.abs(Duration.between(sentAt, Instant.now()).getSeconds()) > toleranceSeconds) {
+            log.warn("Rejected webhook outside the freshness window (sentAt={})", text(payload, "sentAt"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        // Route on the event type carried in the signed body (never an unsigned header).
+        String eventType = text(payload, "event");
         ZeloDeletionRequest event = new ZeloDeletionRequest(
                 text(payload, "requestId"), text(payload, "externalId"), text(payload, "deadline"));
 
@@ -80,5 +95,16 @@ public class ZeloWebhookController {
     private static String text(JsonNode node, String field) {
         JsonNode value = node.get(field);
         return value == null || value.isNull() ? null : value.asText();
+    }
+
+    private static Instant parseInstant(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 }

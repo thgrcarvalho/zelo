@@ -21,6 +21,14 @@ public class ZeloProperties {
     private String webhookSecret;
     private String webhookPath = "/zelo/webhooks";
 
+    /**
+     * How much clock difference to tolerate between Zelo stamping a webhook
+     * ({@code sentAt}) and this app receiving it, in seconds. A delivery older —
+     * or further in the future — than this is rejected as a possible replay; Zelo
+     * re-sends with a fresh timestamp, so a transient skew self-heals.
+     */
+    private long webhookToleranceSeconds = 300;
+
     public String getApiUrl() {
         return apiUrl;
     }
@@ -51,5 +59,13 @@ public class ZeloProperties {
 
     public void setWebhookPath(String webhookPath) {
         this.webhookPath = webhookPath;
+    }
+
+    public long getWebhookToleranceSeconds() {
+        return webhookToleranceSeconds;
+    }
+
+    public void setWebhookToleranceSeconds(long webhookToleranceSeconds) {
+        this.webhookToleranceSeconds = webhookToleranceSeconds;
     }
 }

@@ -47,7 +47,8 @@ public class ZeloAutoConfiguration {
     @ConditionalOnMissingBean
     public ZeloWebhookController zeloWebhookController(PixWebhookValidator validator,
                                                       ZeloWebhookDispatcher dispatcher,
-                                                      ZeloClient client, ObjectMapper objectMapper) {
-        return new ZeloWebhookController(validator, dispatcher, client, objectMapper);
+                                                      ZeloClient client, ObjectMapper objectMapper,
+                                                      ZeloProperties properties) {
+        return new ZeloWebhookController(validator, dispatcher, client, objectMapper, properties);
     }
 }

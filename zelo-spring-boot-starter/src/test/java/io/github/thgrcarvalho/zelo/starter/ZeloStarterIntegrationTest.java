@@ -17,6 +17,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -72,12 +73,13 @@ class ZeloStarterIntegrationTest {
 
     @Test
     void verifiesDispatchesAndAutoFulfills() throws Exception {
-        byte[] body = ("{\"requestId\":\"req-1\",\"externalId\":\"user-1\","
-                + "\"deadline\":\"2026-06-21T00:00:00Z\"}").getBytes(StandardCharsets.UTF_8);
+        byte[] body = ("{\"event\":\"dsr.delete.requested\",\"requestId\":\"req-1\",\"externalId\":\"user-1\","
+                + "\"deadline\":\"2026-06-21T00:00:00Z\",\"sentAt\":\"" + Instant.now() + "\"}")
+                .getBytes(StandardCharsets.UTF_8);
 
+        // No X-Zelo-Event header: the event type is read from the signed body.
         mvc.perform(post("/zelo/webhooks")
                         .header("X-Zelo-Signature", sign("test-secret", body))
-                        .header("X-Zelo-Event", "dsr.delete.requested")
                         .contentType("application/json")
                         .content(body))
                 .andExpect(status().isOk());
@@ -98,6 +100,19 @@ class ZeloStarterIntegrationTest {
                         .contentType("application/json")
                         .content(body))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsAStaleWebhook() throws Exception {
+        // Valid signature, but the signed sentAt is far outside the tolerance window.
+        byte[] body = ("{\"event\":\"dsr.delete.requested\",\"requestId\":\"req-stale\",\"externalId\":\"user-1\","
+                + "\"deadline\":\"2026-06-21T00:00:00Z\",\"sentAt\":\""
+                + Instant.now().minusSeconds(3600) + "\"}").getBytes(StandardCharsets.UTF_8);
+        mvc.perform(post("/zelo/webhooks")
+                        .header("X-Zelo-Signature", sign("test-secret", body))
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isBadRequest());
     }
 
     private static String sign(String secret, byte[] body) throws Exception {
