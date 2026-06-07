@@ -1,25 +1,68 @@
-# Local development stack for Zelo.
+# Self-host the whole Zelo stack: Postgres + the control plane + the demo
+# integrator, wired together so the DELETE loop works out of the box.
 #
-# M0: Postgres only — enough to run zelo-server locally and to back the
-# Testcontainers integration tests' sibling. The full self-host stack
-# (zelo-server + zelo-demo images behind the same network) is added at M7.
+#   docker compose up --build
+#   curl -XPOST localhost:8081/users -H 'content-type: application/json' \
+#        -d '{"external_id":"alice","name":"Alice","email":"alice@example.com"}'
+#   curl -XPOST localhost:8081/users/alice/request-deletion
+#   curl localhost:8081/users/alice                 # -> 404, erased
+#   curl localhost:8080/v1/audit/verify -H 'Authorization: demo-key'   # -> {"ok":true,...}
+#
+# The demo api-key/webhook-secret below are insecure defaults for local use only.
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: zelo-postgres
     environment:
       POSTGRES_DB: zelo
       POSTGRES_USER: zelo
-      POSTGRES_PASSWORD: zelo
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zelo}
     volumes:
       - zelo-pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zelo -d zelo"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  zelo-server:
+    build:
+      context: .
+      dockerfile: zelo-server/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ZELO_DB_URL: jdbc:postgresql://postgres:5432/zelo
+      ZELO_DB_USER: zelo
+      ZELO_DB_PASSWORD: ${POSTGRES_PASSWORD:-zelo}
+      # Provision the demo integrator's API key + webhook target on startup.
+      ZELO_BOOTSTRAP_API_KEY: ${ZELO_DEMO_API_KEY:-demo-key}
+      ZELO_BOOTSTRAP_NAME: demo
+      ZELO_BOOTSTRAP_WEBHOOK_URL: http://zelo-demo:8081/zelo/webhooks
+      ZELO_BOOTSTRAP_WEBHOOK_SECRET: ${ZELO_DEMO_WEBHOOK_SECRET:-demo-secret}
+      ZELO_OUTBOX_POLL_MS: "1000"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  zelo-demo:
+    build:
+      context: .
+      dockerfile: zelo-demo/Dockerfile
+    depends_on:
+      zelo-server:
+        condition: service_healthy
+    environment:
+      ZELO_API_URL: http://zelo-server:8080
+      ZELO_API_KEY: ${ZELO_DEMO_API_KEY:-demo-key}
+      ZELO_WEBHOOK_SECRET: ${ZELO_DEMO_WEBHOOK_SECRET:-demo-secret}
+      DEMO_PORT: "8081"
+    ports:
+      - "8081:8081"
 
 volumes:
   zelo-pgdata:
