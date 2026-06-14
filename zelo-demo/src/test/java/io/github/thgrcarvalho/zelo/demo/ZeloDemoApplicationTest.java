@@ -11,7 +11,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest(properties = {
         "zelo.webhook-secret=test-secret",
         "zelo.api-url=http://localhost:9999",
-        "zelo.api-key=test-key"
+        "zelo.api-key=test-key",
+        // No live control plane here — skip the startup purpose seeding (validated e2e).
+        "zelo.demo.seed-purposes=false"
 })
 class ZeloDemoApplicationTest {
 

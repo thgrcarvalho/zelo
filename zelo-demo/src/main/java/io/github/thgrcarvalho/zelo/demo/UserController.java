@@ -1,6 +1,8 @@
 package io.github.thgrcarvalho.zelo.demo;
 
 import io.github.thgrcarvalho.zelo.starter.ZeloClient;
+import io.github.thgrcarvalho.zelo.starter.ZeloConsentReport;
+import io.github.thgrcarvalho.zelo.starter.ZeloRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,7 +35,13 @@ public class UserController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public DemoUser create(@RequestBody CreateUserRequest request) {
-        return users.save(new DemoUser(request.externalId(), request.name(), request.email()));
+        DemoUser user = users.save(new DemoUser(request.externalId(), request.name(), request.email()));
+        // Register the subject and record the consents captured at signup. Zelo only
+        // ever sees the opaque externalId — never the name/email held above.
+        zelo.registerSubject(user.externalId());
+        zelo.grantConsent(user.externalId(), PurposeRegistrar.TERMS, "signup-form");
+        zelo.grantConsent(user.externalId(), PurposeRegistrar.MARKETING, "signup-form");
+        return user;
     }
 
     @GetMapping
@@ -47,11 +55,23 @@ public class UserController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such user"));
     }
 
+    /** Show what this user has consented to, read straight from Zelo's ledger. */
+    @GetMapping("/{externalId}/consent")
+    public ZeloConsentReport consent(@PathVariable String externalId) {
+        return zelo.getConsent(externalId);
+    }
+
+    /** The user opts out of marketing — recorded (and audited) at Zelo as a WITHDRAW. */
+    @PostMapping("/{externalId}/marketing-opt-out")
+    public ZeloConsentReport optOutOfMarketing(@PathVariable String externalId) {
+        return zelo.withdrawConsent(externalId, PurposeRegistrar.MARKETING, "user-settings");
+    }
+
     /** Ask Zelo to start a deletion request; Zelo will webhook us back to erase the user. */
     @PostMapping("/{externalId}/request-deletion")
     public Map<String, String> requestDeletion(@PathVariable String externalId) {
-        String requestId = zelo.requestDeletion(externalId);
-        return Map.of("requestId", requestId);
+        ZeloRequest request = zelo.requestDeletion(externalId);
+        return Map.of("requestId", request.id(), "status", request.status().name());
     }
 
     public record CreateUserRequest(String externalId, String name, String email) {

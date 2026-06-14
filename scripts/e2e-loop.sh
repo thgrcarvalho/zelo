@@ -18,6 +18,7 @@ fail() { echo "E2E FAIL: $1"; echo "--- server.log ---"; tail -15 "$LOG/server.l
 teardown() { [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null; [ -n "$DEMO_PID" ] && kill "$DEMO_PID" 2>/dev/null; docker rm -f zelo-e2e-pg >/dev/null 2>&1; }
 trap teardown EXIT
 jget() { python3 -c "import sys,json;print(json.load(sys.stdin).get('$1',''))"; }
+cgranted() { python3 -c "import sys,json;r=json.load(sys.stdin);print(next((str(c['granted']).lower() for c in r.get('current',[]) if c.get('purpose_key')=='$1'),'missing'))"; }
 
 docker rm -f zelo-e2e-pg >/dev/null 2>&1
 docker run -d --name zelo-e2e-pg -e POSTGRES_DB=zelo -e POSTGRES_USER=zelo -e POSTGRES_PASSWORD=zelo \
@@ -47,6 +48,17 @@ curl -sf -X POST http://localhost:8081/users -H 'Content-Type: application/json'
   -d '{"external_id":"alice","name":"Alice","email":"alice@example.com"}' >/dev/null || fail "create user"
 curl -sf http://localhost:8081/users/alice >/dev/null || fail "alice missing after create"
 
+echo "--- consent recorded at signup (terms + marketing) ---"
+CONSENT=$(curl -sf http://localhost:8081/users/alice/consent) || fail "read consent"
+[ "$(echo "$CONSENT" | cgranted terms-of-service)" = "true" ] || fail "terms-of-service not granted: $CONSENT"
+[ "$(echo "$CONSENT" | cgranted marketing-emails)" = "true" ] || fail "marketing-emails not granted: $CONSENT"
+
+echo "--- marketing opt-out (consent WITHDRAW, appended + audited) ---"
+curl -sf -X POST http://localhost:8081/users/alice/marketing-opt-out >/dev/null || fail "marketing opt-out"
+CONSENT=$(curl -sf http://localhost:8081/users/alice/consent)
+[ "$(echo "$CONSENT" | cgranted marketing-emails)" = "false" ] || fail "marketing still granted after opt-out: $CONSENT"
+[ "$(echo "$CONSENT" | cgranted terms-of-service)" = "true" ] || fail "terms-of-service should remain granted: $CONSENT"
+
 echo "--- trigger deletion ---"
 RID=$(curl -sf -X POST http://localhost:8081/users/alice/request-deletion | jget requestId)
 [ -n "$RID" ] || fail "no requestId returned"
@@ -61,6 +73,10 @@ STATUS=$(curl -sf "http://localhost:8080/v1/requests/$RID" -H "Authorization: de
 [ "$STATUS" = "FULFILLED" ] || fail "request status=$STATUS (expected FULFILLED)"
 OK=$(curl -sf "http://localhost:8080/v1/audit/verify" -H "Authorization: demo-key" | jget ok)
 [ "$OK" = "True" ] || fail "audit verify ok=$OK"
+AUDIT=$(curl -sf "http://localhost:8080/v1/audit?limit=1000" -H "Authorization: demo-key")
+echo "$AUDIT" | grep -q '"consent.granted"' || fail "no consent.granted event in the audit trail"
+echo "$AUDIT" | grep -q '"consent.withdrawn"' || fail "no consent.withdrawn event in the audit trail"
 
 echo
-echo "E2E PASS: alice erased (404), Zelo request $RID = FULFILLED, audit chain verified ok=$OK"
+echo "E2E PASS: alice consented (terms+marketing) then opted out, erased (404),"
+echo "          Zelo request $RID = FULFILLED, consent + deletion in the audit chain, verified ok=$OK"

@@ -71,8 +71,23 @@ class Erasure {
 }
 ```
 
-That's the whole integration. Throwing from the handler tells Zelo the erasure failed,
-and it retries.
+Throwing from the handler tells Zelo the erasure failed, and it retries.
+
+That handles deletion. The injected `ZeloClient` covers the rest of the LGPD surface
+your app needs — declare purposes, record and query consent, and verify the audit
+chain:
+
+```java
+zelo.definePurpose("marketing-emails", "Send marketing emails", ZeloLegalBasis.CONSENT);
+zelo.grantConsent(externalId, "marketing-emails", "signup-form");   // append-only, audited
+if (zelo.isGranted(externalId, "marketing-emails")) { /* ...send */ }
+zelo.requestDeletion(externalId);          // start the deletion loop above
+zelo.verifyAudit().ok();                    // recompute the tamper-evident chain
+```
+
+**Full walkthrough: [INTEGRATING.md](INTEGRATING.md)** — `external_id` strategy, mapping
+existing opt-outs to purposes, routing account-deletion through Zelo, and (importantly)
+letting the signed webhook through your Spring Security filter.
 
 ---
 
