@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zelo — Dashboard</title>
+<meta name="description" content="Zelo developer dashboard: create an account, get approved, and self-issue API keys to integrate the LGPD compliance control plane.">
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --ink: #0B0F14;
+    --panel: #121821;
+    --panel-2: #0E141C;
+    --border: #1E2731;
+    --border-soft: #19212B;
+    --text: #E6EDF3;
+    --muted: #8B98A5;
+    --green: #10B981;
+    --teal: #14B8A6;
+    --blue: #3B82F6;
+    --amber: #F59E0B;
+    --red: #EF4444;
+    --wide: 1080px;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text); font-family: var(--sans);
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  a { color: var(--green); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 3px; }
+
+  .wrap { width: 100%; max-width: var(--wide); margin: 0 auto; padding: 0 22px; }
+
+  /* ---------- Nav ---------- */
+  .nav { position: sticky; top: 0; z-index: 100; background: rgba(11, 15, 20, 0.82); backdrop-filter: saturate(140%) blur(10px); border-bottom: 1px solid var(--border-soft); }
+  .nav-inner { max-width: var(--wide); margin: 0 auto; padding: 12px 22px; display: flex; align-items: center; gap: 16px; }
+  .wordmark { font-weight: 700; font-size: 19px; letter-spacing: -0.02em; color: var(--text); display: inline-flex; align-items: center; gap: 9px; }
+  .wordmark:hover { text-decoration: none; }
+  .mark-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px rgba(16,185,129,0.7); flex: none; }
+  .nav-links { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .nav-links a, .nav-links button.linkish { color: var(--muted); font-size: 14.5px; padding: 6px 10px; border-radius: 7px; background: none; border: none; cursor: pointer; font-family: inherit; }
+  .nav-links a:hover, .nav-links button.linkish:hover { color: var(--text); text-decoration: none; background: var(--panel); }
+  .nav-who { font-size: 13.5px; color: var(--muted); font-family: var(--mono); }
+
+  /* ---------- Layout ---------- */
+  .page { padding: 44px 0 0; }
+  h1.title { font-size: clamp(26px, 4vw, 34px); line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; margin: 0 0 8px; }
+  .lead { color: var(--muted); margin: 0 0 26px; max-width: 640px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); font-family: var(--mono); border: 1px solid var(--border); background: var(--panel); padding: 5px 12px; border-radius: 999px; margin-bottom: 18px; }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin: 18px 0; }
+  .card.tight { padding: 18px; }
+  .card h2 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .card h3 { font-size: 15px; font-family: var(--mono); color: var(--text); margin: 0 0 12px; font-weight: 600; }
+  .card .sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  .auth-card { max-width: 440px; }
+
+  /* ---------- Forms ---------- */
+  .field { margin: 0 0 14px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px; font-family: var(--mono); }
+  input[type=text], input[type=email], input[type=password] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px;
+    color: var(--text); font-family: var(--sans); font-size: 15px; padding: 11px 13px;
+  }
+  input:focus { border-color: var(--teal); outline: none; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 5px 0 0; }
+
+  .btn { font-family: var(--sans); font-size: 15px; font-weight: 600; border: none; cursor: pointer; border-radius: 9px; padding: 11px 18px; background: var(--green); color: var(--ink); display: inline-block; transition: background 0.15s ease; }
+  .btn:hover { background: var(--teal); }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--panel-2); }
+  .btn-sm { font-size: 13px; padding: 7px 12px; border-radius: 8px; }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid rgba(239,68,68,0.45); }
+  .btn-danger:hover { background: rgba(239,68,68,0.10); }
+  .btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+
+  .toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; margin-bottom: 18px; }
+  .toggle button { background: var(--panel-2); color: var(--muted); border: none; padding: 9px 16px; font-family: var(--sans); font-size: 14px; cursor: pointer; }
+  .toggle button.on { background: var(--green); color: var(--ink); font-weight: 600; }
+
+  /* ---------- Tables ---------- */
+  .tbl-wrap { overflow-x: auto; }
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.tbl th, table.tbl td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  table.tbl th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.tbl td { color: var(--text); }
+  table.tbl tr:last-child td { border-bottom: none; }
+  table.tbl .mono { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .empty { color: var(--muted); font-size: 14px; padding: 14px 2px; }
+
+  /* ---------- Badges ---------- */
+  .badge { font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); color: var(--muted); background: var(--panel-2); display: inline-block; }
+  .badge.ok { color: var(--green); border-color: rgba(16,185,129,0.4); }
+  .badge.warn { color: var(--amber); border-color: rgba(245,158,11,0.4); }
+  .badge.off { color: var(--muted); }
+  .badge.role { color: var(--blue); border-color: rgba(59,130,246,0.4); }
+
+  /* ---------- Key reveal ---------- */
+  .reveal { border: 1px solid rgba(16,185,129,0.45); background: rgba(16,185,129,0.06); border-radius: 12px; padding: 16px; margin: 16px 0; }
+  .reveal .co-title { font-weight: 600; color: var(--text); margin-bottom: 8px; display: block; }
+  .reveal .keybox { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .reveal code { font-family: var(--mono); font-size: 13px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 7px; padding: 9px 12px; color: var(--text); word-break: break-all; flex: 1; min-width: 240px; }
+  .reveal .warn-line { color: var(--amber); font-size: 13px; margin: 10px 0 0; }
+
+  /* ---------- Callout / flash ---------- */
+  .callout { border: 1px solid var(--border); border-left: 3px solid var(--teal); background: var(--panel); border-radius: 10px; padding: 13px 16px; margin: 18px 0; font-size: 14.5px; color: var(--muted); }
+  .callout.warn { border-left-color: var(--amber); }
+  .callout strong { color: var(--text); }
+  #flash { position: fixed; right: 18px; bottom: 18px; z-index: 200; display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
+  .toast { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--green); border-radius: 10px; padding: 12px 14px; font-size: 14px; color: var(--text); box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+  .toast.err { border-left-color: var(--red); }
+
+  .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .inline-form { margin-top: 12px; padding: 14px; background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: 10px; }
+  .inline-form .field { margin-bottom: 10px; }
+  .muted { color: var(--muted); }
+  details.wh > summary { cursor: pointer; color: var(--muted); font-size: 13px; font-family: var(--mono); }
+
+  footer { padding: 40px 0 60px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--border-soft); margin-top: 60px; }
+  footer .foot-grid { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: center; }
+  footer a { color: var(--muted); }
+  .foot-note { margin-top: 16px; font-family: var(--mono); font-size: 12.5px; color: var(--green); }
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="Primary">
+  <div class="nav-inner">
+    <a class="wordmark" href="/"><span class="mark-dot" aria-hidden="true"></span>Zelo</a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/docs/">Docs</a>
+      <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">GitHub</a>
+      <span id="nav-account"></span>
+    </div>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="wrap">
+    <div id="app" aria-live="polite">
+      <div class="card"><p class="muted">Loading…</p></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <a class="wordmark" href="/" style="font-size:17px;"><span class="mark-dot" aria-hidden="true"></span>Zelo</a>
+      <span>Open source · Apache-2.0</span>
+      <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">github.com/thgrcarvalho/zelo</a>
+      <a href="/docs/">Docs</a>
+    </div>
+    <p class="foot-note">Zelo is a control plane that stores zero end-user PII. Your account email is B2B contact data — a separate category.</p>
+  </div>
+</footer>
+
+<div id="flash" aria-live="assertive"></div>
+
+<script>
+"use strict";
+(function () {
+  var app = document.getElementById("app");
+  var navAccount = document.getElementById("nav-account");
+  var flash = document.getElementById("flash");
+  var me = null;
+
+  // --- helpers ---------------------------------------------------------------
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function toast(message, isError) {
+    var t = document.createElement("div");
+    t.className = "toast" + (isError ? " err" : "");
+    t.textContent = message;
+    flash.appendChild(t);
+    setTimeout(function () { t.remove(); }, isError ? 6000 : 3500);
+  }
+
+  // All calls are same-origin to /account/**; credentials:include sends the
+  // session cookie; the JSON content-type is part of the CSRF posture.
+  function api(path, opts) {
+    opts = opts || {};
+    var init = { method: opts.method || "GET", credentials: "include", headers: {} };
+    if (opts.body !== undefined && opts.body !== null) {
+      init.headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(opts.body);
+    }
+    return fetch("/account" + path, init).then(function (res) {
+      if (res.status === 204) return null;
+      return res.json().catch(function () { return null; }).then(function (data) {
+        if (!res.ok) {
+          var msg = (data && data.message) ? data.message : ("Request failed (" + res.status + ")");
+          var err = new Error(msg);
+          err.status = res.status;
+          throw err;
+        }
+        return data;
+      });
+    });
+  }
+
+  function fail(err) {
+    toast(err && err.message ? err.message : "Something went wrong", true);
+  }
+
+  function statusBadge(status) {
+    if (status === "ACTIVE") return '<span class="badge ok">ACTIVE</span>';
+    if (status === "PENDING") return '<span class="badge warn">PENDING</span>';
+    if (status === "REJECTED") return '<span class="badge off">REJECTED</span>';
+    return '<span class="badge">' + esc(status) + "</span>";
+  }
+
+  // --- top-level state machine ------------------------------------------------
+
+  function refresh() {
+    return api("/me")
+      .then(function (data) { me = data; })
+      .catch(function (err) { if (err.status === 401) { me = null; } else { throw err; } })
+      .then(render)
+      .catch(fail);
+  }
+
+  function render() {
+    renderNav();
+    if (!me) return renderAuth();
+    if (me.status === "PENDING") return renderPending();
+    if (me.status === "REJECTED") return renderRejected();
+    return renderActive();
+  }
+
+  function renderNav() {
+    if (!me) { navAccount.innerHTML = ""; return; }
+    navAccount.innerHTML =
+      '<span class="nav-who">' + esc(me.email) + "</span>" +
+      '<button class="linkish" id="logout">Log out</button>';
+    document.getElementById("logout").addEventListener("click", function () {
+      api("/logout", { method: "POST" }).then(function () {
+        me = null; render(); toast("Logged out");
+      }).catch(fail);
+    });
+  }
+
+  // --- logged out: signup / login --------------------------------------------
+
+  function renderAuth() {
+    app.innerHTML =
+      '<span class="eyebrow">Developer access</span>' +
+      '<h1 class="title">Your Zelo dashboard</h1>' +
+      '<p class="lead">Create an account to self-issue API keys for the LGPD compliance control plane. ' +
+      "New accounts are reviewed by an operator before they can mint keys.</p>" +
+      '<div class="card auth-card">' +
+        '<div class="toggle" role="tablist">' +
+          '<button id="tab-login" class="on">Log in</button>' +
+          '<button id="tab-signup">Sign up</button>' +
+        "</div>" +
+        '<div id="auth-body"></div>' +
+      "</div>";
+
+    var showing = "login";
+    function paint() {
+      document.getElementById("tab-login").className = showing === "login" ? "on" : "";
+      document.getElementById("tab-signup").className = showing === "signup" ? "on" : "";
+      document.getElementById("auth-body").innerHTML = showing === "login" ? loginForm() : signupForm();
+      if (showing === "login") wireLogin(); else wireSignup();
+    }
+    document.getElementById("tab-login").addEventListener("click", function () { showing = "login"; paint(); });
+    document.getElementById("tab-signup").addEventListener("click", function () { showing = "signup"; paint(); });
+    paint();
+  }
+
+  function loginForm() {
+    return (
+      '<div class="field"><label for="li-email">Email</label>' +
+      '<input id="li-email" type="email" autocomplete="email"></div>' +
+      '<div class="field"><label for="li-pass">Password</label>' +
+      '<input id="li-pass" type="password" autocomplete="current-password"></div>' +
+      '<button class="btn" id="li-submit">Log in</button>'
+    );
+  }
+
+  function wireLogin() {
+    document.getElementById("li-submit").addEventListener("click", function () {
+      var btn = this;
+      btn.disabled = true;
+      api("/login", { method: "POST", body: {
+        email: document.getElementById("li-email").value.trim(),
+        password: document.getElementById("li-pass").value
+      } }).then(function (data) {
+        me = data; render(); toast("Welcome back");
+      }).catch(function (err) { fail(err); btn.disabled = false; });
+    });
+  }
+
+  function signupForm() {
+    return (
+      '<div class="field"><label for="su-email">Email</label>' +
+      '<input id="su-email" type="email" autocomplete="email"></div>' +
+      '<div class="field"><label for="su-org">Organization</label>' +
+      '<input id="su-org" type="text" autocomplete="organization"></div>' +
+      '<div class="field"><label for="su-pass">Password</label>' +
+      '<input id="su-pass" type="password" autocomplete="new-password">' +
+      '<p class="hint">At least 8 characters.</p></div>' +
+      '<button class="btn" id="su-submit">Create account</button>' +
+      '<p class="hint" style="margin-top:12px;">We store your email and org as B2B contact data — never end-user PII.</p>'
+    );
+  }
+
+  function wireSignup() {
+    document.getElementById("su-submit").addEventListener("click", function () {
+      var btn = this;
+      var pass = document.getElementById("su-pass").value;
+      if (pass.length < 8) { toast("Password must be at least 8 characters", true); return; }
+      btn.disabled = true;
+      api("/signup", { method: "POST", body: {
+        email: document.getElementById("su-email").value.trim(),
+        org_name: document.getElementById("su-org").value.trim(),
+        password: pass
+      } }).then(function (data) {
+        me = data; render(); toast("Account created — awaiting approval");
+      }).catch(function (err) { fail(err); btn.disabled = false; });
+    });
+  }
+
+  // --- pending / rejected -----------------------------------------------------
+
+  function renderPending() {
+    app.innerHTML =
+      '<span class="eyebrow">Account status</span>' +
+      '<h1 class="title">Awaiting approval</h1>' +
+      '<div class="card">' +
+        "<p>Your account <strong>" + esc(me.email) + "</strong> (" + esc(me.org_name) + ") is " +
+        statusBadge("PENDING") + ".</p>" +
+        '<p class="muted">An operator reviews new accounts before they can issue API keys. ' +
+        "You'll be able to create keys here once approved. In the meantime, read the " +
+        '<a href="/docs/">integration guide</a>.</p>' +
+      "</div>";
+  }
+
+  function renderRejected() {
+    app.innerHTML =
+      '<span class="eyebrow">Account status</span>' +
+      '<h1 class="title">Account not approved</h1>' +
+      '<div class="card"><p>Your account <strong>' + esc(me.email) + "</strong> was not approved. " +
+      'If you think this is a mistake, reach out via <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">GitHub</a>.</p></div>';
+  }
+
+  // --- active: keys (+ operator queue) ---------------------------------------
+
+  function renderActive() {
+    var isOp = me.role === "OPERATOR";
+    app.innerHTML =
+      '<span class="eyebrow">Dashboard</span>' +
+      '<h1 class="title">API keys</h1>' +
+      '<p class="lead">Issue keys for <strong>' + esc(me.org_name) + "</strong>, point them at your webhook, " +
+      'and revoke them when you rotate. New here? Start with the <a href="/docs/">integration guide</a>.</p>' +
+      (isOp ? '<p><span class="badge role">OPERATOR</span></p>' : "") +
+      '<div class="card">' +
+        "<h2>Create a key</h2>" +
+        '<p class="sub">The raw key is shown once, at creation. Store it immediately — it is never displayed again.</p>' +
+        '<div id="create-host"></div>' +
+        createForm() +
+      "</div>" +
+      '<div class="card">' +
+        "<h2>Your keys</h2>" +
+        '<div id="keys" class="tbl-wrap"><p class="empty">Loading keys…</p></div>' +
+      "</div>" +
+      (isOp ? operatorSection() : "");
+
+    wireCreateForm();
+    loadKeys();
+    if (isOp) loadQueue();
+  }
+
+  function createForm() {
+    return (
+      '<div class="field"><label for="ck-name">Name</label>' +
+      '<input id="ck-name" type="text" placeholder="e.g. production"></div>' +
+      '<details class="wh"><summary>Webhook (optional — can be set later)</summary>' +
+        '<div class="inline-form">' +
+          '<div class="field"><label for="ck-wurl">Webhook URL</label>' +
+          '<input id="ck-wurl" type="text" placeholder="https://app.example.com/zelo/webhooks"></div>' +
+          '<div class="field"><label for="ck-wsec">Webhook secret</label>' +
+          '<input id="ck-wsec" type="text" placeholder="whsec_…"></div>' +
+          '<p class="hint">Provide both or neither — a webhook without a secret would deliver unsigned callbacks.</p>' +
+        "</div>" +
+      "</details>" +
+      '<div class="btn-row"><button class="btn" id="ck-submit">Create key</button></div>'
+    );
+  }
+
+  function wireCreateForm() {
+    document.getElementById("ck-submit").addEventListener("click", function () {
+      var btn = this;
+      var name = document.getElementById("ck-name").value.trim();
+      var url = document.getElementById("ck-wurl").value.trim();
+      var sec = document.getElementById("ck-wsec").value.trim();
+      if (!name) { toast("Give the key a name", true); return; }
+      if ((url && !sec) || (sec && !url)) { toast("Provide both webhook URL and secret, or neither", true); return; }
+      var body = { name: name };
+      if (url) { body.webhook_url = url; body.webhook_secret = sec; }
+      btn.disabled = true;
+      api("/api-keys", { method: "POST", body: body }).then(function (created) {
+        revealKey(created);
+        document.getElementById("ck-name").value = "";
+        document.getElementById("ck-wurl").value = "";
+        document.getElementById("ck-wsec").value = "";
+        btn.disabled = false;
+        loadKeys();
+      }).catch(function (err) { fail(err); btn.disabled = false; });
+    });
+  }
+
+  function revealKey(created) {
+    var host = document.getElementById("create-host");
+    host.innerHTML =
+      '<div class="reveal">' +
+        '<span class="co-title">Key “' + esc(created.name) + '” created — copy it now</span>' +
+        '<div class="keybox"><code id="raw-key">' + esc(created.api_key) + "</code>" +
+        '<button class="btn btn-sm" id="copy-key">Copy</button></div>' +
+        '<p class="warn-line">This is the only time the key is shown. If you lose it, revoke it and create another.</p>' +
+      "</div>";
+    document.getElementById("copy-key").addEventListener("click", function () {
+      var text = created.api_key;
+      var done = function () { toast("Key copied"); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () { selectRawKey(); });
+      } else { selectRawKey(); }
+    });
+  }
+
+  function selectRawKey() {
+    var node = document.getElementById("raw-key");
+    var range = document.createRange();
+    range.selectNodeContents(node);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    toast("Select and copy the highlighted key");
+  }
+
+  function loadKeys() {
+    return api("/api-keys").then(function (keys) {
+      var host = document.getElementById("keys");
+      if (!keys || keys.length === 0) {
+        host.innerHTML = '<p class="empty">No keys yet. Create one above.</p>';
+        return;
+      }
+      var rows = keys.map(keyRow).join("");
+      host.innerHTML =
+        '<table class="tbl"><thead><tr>' +
+        "<th>Name</th><th>Tier</th><th>Webhook</th><th>Created</th><th>Status</th><th></th>" +
+        "</tr></thead><tbody>" + rows + "</tbody></table>" +
+        '<div id="key-forms"></div>';
+      keys.forEach(wireKeyRow);
+    }).catch(function (err) {
+      var host = document.getElementById("keys");
+      if (host) host.innerHTML = '<p class="empty">Could not load keys.</p>';
+      fail(err);
+    });
+  }
+
+  function keyRow(k) {
+    var webhook = k.webhook_url ? '<span class="mono">' + esc(k.webhook_url) + "</span>" : '<span class="muted">—</span>';
+    var status = k.revoked ? '<span class="badge off">revoked</span>' : '<span class="badge ok">active</span>';
+    var actions = k.revoked ? "" :
+      '<div class="row-actions">' +
+        '<button class="btn btn-ghost btn-sm" data-wh="' + esc(k.id) + '">Webhook</button>' +
+        '<button class="btn btn-danger btn-sm" data-revoke="' + esc(k.id) + '" data-name="' + esc(k.name) + '">Revoke</button>' +
+      "</div>";
+    return "<tr>" +
+      "<td>" + esc(k.name) + "</td>" +
+      "<td>" + (k.tier ? '<span class="badge">' + esc(k.tier) + "</span>" : '<span class="muted">—</span>') + "</td>" +
+      "<td>" + webhook + "</td>" +
+      '<td class="mono">' + esc((k.created_at || "").slice(0, 10)) + "</td>" +
+      "<td>" + status + "</td>" +
+      "<td>" + actions + "</td>" +
+      "</tr>";
+  }
+
+  function wireKeyRow(k) {
+    if (k.revoked) return;
+    var whBtn = document.querySelector('[data-wh="' + k.id + '"]');
+    if (whBtn) {
+      whBtn.addEventListener("click", function () { toggleWebhookForm(k); });
+    }
+    var revBtn = document.querySelector('[data-revoke="' + k.id + '"]');
+    if (revBtn) {
+      revBtn.addEventListener("click", function () {
+        if (!window.confirm('Revoke key "' + k.name + '"? It stops working immediately.')) return;
+        api("/api-keys/" + k.id, { method: "DELETE" }).then(function () {
+          toast("Key revoked"); loadKeys();
+        }).catch(fail);
+      });
+    }
+  }
+
+  function toggleWebhookForm(k) {
+    var host = document.getElementById("key-forms");
+    if (host.getAttribute("data-for") === k.id) { host.innerHTML = ""; host.removeAttribute("data-for"); return; }
+    host.setAttribute("data-for", k.id);
+    host.innerHTML =
+      '<div class="inline-form">' +
+        "<h3>Set webhook for “" + esc(k.name) + "”</h3>" +
+        '<div class="field"><label for="wf-url">Webhook URL</label>' +
+        '<input id="wf-url" type="text" value="' + esc(k.webhook_url || "") + '" placeholder="https://app.example.com/zelo/webhooks"></div>' +
+        '<div class="field"><label for="wf-sec">Webhook secret</label>' +
+        '<input id="wf-sec" type="text" placeholder="whsec_…"></div>' +
+        '<div class="btn-row"><button class="btn btn-sm" id="wf-save">Save webhook</button>' +
+        '<button class="btn btn-ghost btn-sm" id="wf-cancel">Cancel</button></div>' +
+        '<p class="hint">Both fields are required. The secret is write-only — it is never shown back.</p>' +
+      "</div>";
+    document.getElementById("wf-cancel").addEventListener("click", function () {
+      host.innerHTML = ""; host.removeAttribute("data-for");
+    });
+    document.getElementById("wf-save").addEventListener("click", function () {
+      var url = document.getElementById("wf-url").value.trim();
+      var sec = document.getElementById("wf-sec").value.trim();
+      if (!url || !sec) { toast("Webhook URL and secret are both required", true); return; }
+      api("/api-keys/" + k.id + "/webhook", { method: "PATCH", body: { webhook_url: url, webhook_secret: sec } })
+        .then(function () { toast("Webhook updated"); host.innerHTML = ""; host.removeAttribute("data-for"); loadKeys(); })
+        .catch(fail);
+    });
+  }
+
+  // --- operator: approval queue ----------------------------------------------
+
+  function operatorSection() {
+    return (
+      '<div class="card">' +
+        "<h2>Approval queue</h2>" +
+        '<p class="sub">Accounts awaiting a decision. Approving lets them issue keys; rejecting blocks them.</p>' +
+        '<div id="queue" class="tbl-wrap"><p class="empty">Loading queue…</p></div>' +
+      "</div>"
+    );
+  }
+
+  function loadQueue() {
+    return api("/admin/pending").then(function (list) {
+      var host = document.getElementById("queue");
+      if (!host) return;
+      if (!list || list.length === 0) {
+        host.innerHTML = '<p class="empty">Nothing pending. 🎉</p>';
+        return;
+      }
+      var rows = list.map(function (a) {
+        return "<tr>" +
+          "<td>" + esc(a.email) + "</td>" +
+          "<td>" + esc(a.org_name) + "</td>" +
+          '<td class="mono">' + esc((a.created_at || "").slice(0, 10)) + "</td>" +
+          '<td><div class="row-actions">' +
+            '<button class="btn btn-sm" data-approve="' + esc(a.id) + '">Approve</button>' +
+            '<button class="btn btn-danger btn-sm" data-reject="' + esc(a.id) + '">Reject</button>' +
+          "</div></td></tr>";
+      }).join("");
+      host.innerHTML =
+        '<table class="tbl"><thead><tr><th>Email</th><th>Org</th><th>Requested</th><th></th></tr></thead><tbody>' +
+        rows + "</tbody></table>";
+      list.forEach(function (a) {
+        document.querySelector('[data-approve="' + a.id + '"]').addEventListener("click", function () {
+          decide(a.id, "approve");
+        });
+        document.querySelector('[data-reject="' + a.id + '"]').addEventListener("click", function () {
+          if (!window.confirm("Reject " + a.email + "?")) return;
+          decide(a.id, "reject");
+        });
+      });
+    }).catch(function (err) {
+      var host = document.getElementById("queue");
+      if (host) host.innerHTML = '<p class="empty">Could not load the queue.</p>';
+      fail(err);
+    });
+  }
+
+  function decide(accountId, action) {
+    api("/admin/accounts/" + accountId + "/" + action, { method: "POST" }).then(function () {
+      toast(action === "approve" ? "Account approved" : "Account rejected");
+      loadQueue();
+    }).catch(fail);
+  }
+
+  // --- boot -------------------------------------------------------------------
+  refresh();
+})();
+</script>
+</body>
+</html>
