@@ -49,6 +49,63 @@ public class ApiKeyProvisioningService {
     }
 
     /**
+     * Mint a key owned by {@code accountId} (the self-service path). Identical to
+     * {@link #create(String, String, String, String)} but stamps the owning account
+     * so account-scoped reads/writes can enforce isolation.
+     */
+    @Transactional
+    public Minted create(UUID accountId, String name, String webhookUrl, String webhookSecret, String tier) {
+        WebhookUrlPolicy.requireDeliverable(webhookUrl);
+        String rawKey = RawKeys.generate();
+        ApiKey apiKey = new ApiKey(UUID.randomUUID(), Hashes.sha256Hex(rawKey), name,
+                blankToNull(webhookUrl), blankToNull(webhookSecret), blankToNull(tier), accountId, Instant.now());
+        apiKeys.save(apiKey);
+        log.info("Provisioned API key '{}' (id={}, account={}, tier={})",
+                name, apiKey.getId(), accountId, apiKey.getTier());
+        return new Minted(apiKey, rawKey);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApiKey> listForAccount(UUID accountId) {
+        return apiKeys.findByAccountIdOrderByCreatedAtAsc(accountId);
+    }
+
+    /** Set the webhook on a key the account owns; 404 if it isn't theirs. */
+    @Transactional
+    public ApiKey updateWebhookForAccount(UUID accountId, UUID id, String webhookUrl, String webhookSecret) {
+        // Ownership first (404 hides existence), then validate the target (400).
+        ApiKey apiKey = ownedByOrNotFound(accountId, id);
+        WebhookUrlPolicy.requireDeliverable(webhookUrl);
+        apiKey.updateWebhook(blankToNull(webhookUrl), blankToNull(webhookSecret));
+        apiKeys.save(apiKey);
+        log.info("Updated webhook for API key id={} (account={})", apiKey.getId(), accountId);
+        return apiKey;
+    }
+
+    /** Soft-revoke a key the account owns; 404 if it isn't theirs. Idempotent. */
+    @Transactional
+    public void revokeForAccount(UUID accountId, UUID id) {
+        ApiKey apiKey = ownedByOrNotFound(accountId, id);
+        if (apiKey.revoke(Instant.now())) {
+            apiKeys.save(apiKey);
+            log.info("Revoked API key id={} (account={})", apiKey.getId(), accountId);
+        }
+    }
+
+    /**
+     * Load a key only if it belongs to {@code accountId}. A key that exists but
+     * belongs to another account yields the SAME "not found" as a missing key, so
+     * one account cannot probe another's key ids. Isolation is enforced here, in
+     * the service, never trusted from the caller.
+     */
+    private ApiKey ownedByOrNotFound(UUID accountId, UUID id) {
+        ApiKey apiKey = apiKeys.findById(id)
+                .filter(k -> accountId.equals(k.getAccountId()))
+                .orElseThrow(() -> new ResourceNotFoundException("API key " + id + " not found"));
+        return apiKey;
+    }
+
+    /**
      * Set a key's webhook destination + signing secret (e.g. to enable
      * deletion-orchestration delivery once the client's public URL is known).
      * Replaces both fields. Returns the updated key.

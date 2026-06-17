@@ -62,3 +62,12 @@ zelo:
     # disables the admin API entirely (fail-closed); set a strong value in prod
     # to onboard clients without a redeploy.
     master-key: ${ZELO_ADMIN_MASTER_KEY:}
+  auth:
+    # Self-service account auth (/account/**). session-secret is the HMAC key for
+    # session cookies; blank disables dashboard logins (fail-closed). Setting
+    # operator-email + operator-password seeds the first operator on startup so it
+    # can work the approval queue. All blank by default; set them in prod.
+    session-secret: ${ZELO_AUTH_SECRET:}
+    operator-email: ${ZELO_OPERATOR_EMAIL:}
+    operator-password: ${ZELO_OPERATOR_PASSWORD:}
+    session-ttl-hours: ${ZELO_SESSION_TTL_HOURS:168}
