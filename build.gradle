@@ -12,6 +12,9 @@
 plugins {
     id 'org.springframework.boot' version '3.4.5' apply false
     id 'io.spring.dependency-management' version '1.1.7' apply false
+    // Publishing the starter to Maven Central (Central Portal). Applied only by
+    // the starter module; see zelo-spring-boot-starter/build.gradle.
+    id 'com.vanniktech.maven.publish' version '0.36.0' apply false
 }
 
 allprojects {

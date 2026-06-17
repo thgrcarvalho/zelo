@@ -1,5 +1,5 @@
 apply plugin: 'java-library'
-apply plugin: 'maven-publish'
+apply plugin: 'com.vanniktech.maven.publish'
 
 description = 'Zelo Spring Boot starter — embed in an integrator app to receive and auto-fulfill signed Zelo webhooks.'
 
@@ -18,20 +18,43 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-            pom {
-                name = 'zelo-spring-boot-starter'
-                description = project.description
-                licenses {
-                    license {
-                        name = 'Apache License, Version 2.0'
-                        url = 'https://www.apache.org/licenses/LICENSE-2.0'
-                    }
-                }
+// Publishes to Maven Central via the Central Portal. The vanniktech plugin adds
+// -sources and -javadoc jars and signs all publications. Credentials and the
+// PGP key are supplied out-of-band (gradle properties / env vars), never
+// committed — see PUBLISHING.md. Local `publishToMavenLocal` works without them.
+mavenPublishing {
+    publishToMavenCentral()
+    // Sign only when a PGP key is configured (signingInMemoryKey, via gradle
+    // property or the ORG_GRADLE_PROJECT_ env var). Local publishToMavenLocal and
+    // keyless CI builds skip signing; the real Central publish supplies the key
+    // and is always signed (Central requires it).
+    if (project.hasProperty('signingInMemoryKey')) {
+        signAllPublications()
+    }
+
+    coordinates(group.toString(), 'zelo-spring-boot-starter', version.toString())
+
+    pom {
+        name = 'Zelo Spring Boot Starter'
+        description = project.description
+        url = 'https://github.com/thgrcarvalho/zelo'
+        licenses {
+            license {
+                name = 'Apache License, Version 2.0'
+                url = 'https://www.apache.org/licenses/LICENSE-2.0'
             }
+        }
+        developers {
+            developer {
+                id = 'thgrcarvalho'
+                name = 'Thiago Rodrigues Carvalho'
+                url = 'https://github.com/thgrcarvalho'
+            }
+        }
+        scm {
+            connection = 'scm:git:https://github.com/thgrcarvalho/zelo.git'
+            developerConnection = 'scm:git:ssh://git@github.com/thgrcarvalho/zelo.git'
+            url = 'https://github.com/thgrcarvalho/zelo'
         }
     }
 }
