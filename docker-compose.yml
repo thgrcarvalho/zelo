@@ -40,6 +40,10 @@ services:
       ZELO_BOOTSTRAP_NAME: demo
       ZELO_BOOTSTRAP_WEBHOOK_URL: http://zelo-demo:8081/zelo/webhooks
       ZELO_BOOTSTRAP_WEBHOOK_SECRET: ${ZELO_DEMO_WEBHOOK_SECRET:-demo-secret}
+      # Master key for the runtime key-provisioning API (/admin/**). Blank by
+      # default → admin API disabled (fail-closed). Set ZELO_ADMIN_MASTER_KEY to
+      # onboard clients at runtime without a redeploy.
+      ZELO_ADMIN_MASTER_KEY: ${ZELO_ADMIN_MASTER_KEY:-}
       ZELO_OUTBOX_POLL_MS: "1000"
     ports:
       - "8080:8080"
