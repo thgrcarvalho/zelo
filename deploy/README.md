@@ -27,16 +27,23 @@ image simply ignores the new variables until PR A's code is present.
 Assumes the repo is checked out at `~/zelo` and the landing vhost is
 `/etc/nginx/sites-available/zelo-landing` (serving `/var/www/zelocompliance`).
 
-**1. Secrets** — add to `~/zelo/.env` (untracked; survives `git reset`):
+**1. Secrets** — add to `~/zelo/.env`. `.env` is untracked and survives
+`git reset --hard` (so does `docker-compose.override.yml`); just never run
+`git clean -fdx`, which would delete both.
+
+`.env` does **not** run command substitution, so generate the secret in the shell
+and append the literal value — don't paste an `$(...)` placeholder:
 
 ```sh
-ZELO_AUTH_SECRET=<openssl rand -base64 48>
-ZELO_OPERATOR_EMAIL=<your operator email>
-ZELO_OPERATOR_PASSWORD=<a strong password>
+printf 'ZELO_AUTH_SECRET=%s\n' "$(openssl rand -base64 48)" >> ~/zelo/.env
+printf 'ZELO_OPERATOR_EMAIL=%s\n' "you@example.com"          >> ~/zelo/.env
+printf 'ZELO_OPERATOR_PASSWORD=%s\n' "<a strong password, min 8 chars>" >> ~/zelo/.env
 ```
 
-A blank `ZELO_AUTH_SECRET` leaves `/account` fail-closed (no logins), so this step is
-what turns the dashboard on. The operator account is seeded once, on startup.
+A blank `ZELO_AUTH_SECRET` leaves `/account` fail-closed (signup/login return 503),
+so this step is what turns the dashboard on. The operator account is seeded once, on
+startup; an operator password shorter than 8 characters is refused (no operator is
+seeded), matching the floor enforced on self-service signup.
 
 **2. Rebuild the control plane** (picks up the new env + PR A's code/migration):
 
@@ -57,9 +64,11 @@ sudo chmod 644 /var/www/zelocompliance/app/index.html
 `/app/` resolves via the landing vhost's existing `try_files $uri $uri/` — no nginx
 change is needed *for the static page*.
 
-**4. Wire the account API proxy** — paste the block from
-`deploy/nginx/account-proxy.conf` into the **TLS server block** of the landing vhost
-(`server_name zelocompliance.com www.zelocompliance.com;`), then:
+**4. Wire the account API proxy** — from `deploy/nginx/account-proxy.conf`:
+add the one `limit_req_zone` line to the **http{} context** (e.g. a file under
+`/etc/nginx/conf.d/`), and paste the three `location` blocks into the **TLS server
+block** of the landing vhost (`server_name zelocompliance.com www.zelocompliance.com;`),
+then:
 
 ```sh
 sudo nginx -t && sudo systemctl reload nginx
@@ -68,14 +77,26 @@ sudo nginx -t && sudo systemctl reload nginx
 Do **not** add `/account/` to the `api.zelocompliance.com` vhost — it must stay on the
 dashboard origin only (session-cookie auth, same origin as `/app`).
 
+**Canonical host:** the session cookie is host-only (no `Domain`), so `/app` and
+`/account` must be used on a single host. The landing vhost serves both
+`zelocompliance.com` and `www.zelocompliance.com`; pick one canonical host (e.g.
+redirect `www` → apex) so a login on one host isn't invisible on the other. Don't add
+a `Domain` attribute to widen the cookie.
+
 ## Verify
 
 ```sh
-# Unauthenticated -> 401 JSON (proxy + filter both working):
+# Proxy + filter reachable (this 401 alone does NOT prove the secret is set —
+# a blank ZELO_AUTH_SECRET would make signup/login 503, but /me still 401s):
 curl -si https://zelocompliance.com/account/me | head -1        # HTTP/2 401
 # Dashboard loads:
 curl -sI https://zelocompliance.com/app/ | head -1              # HTTP/2 200
-# Operator can sign in (seeded from .env), then work the queue in the UI.
+# FUNCTIONAL check — operator login must return 200 + a Set-Cookie. A 503 here
+# means ZELO_AUTH_SECRET is blank; a 401 means wrong creds.
+curl -si -X POST https://zelocompliance.com/account/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"<operator password>"}' \
+  | grep -Ei '^HTTP/|^set-cookie'                                # HTTP/2 200 + set-cookie: zelo_session=...
 ```
 
 Then onboard for real: sign up at `/app`, approve from the operator account, self-issue

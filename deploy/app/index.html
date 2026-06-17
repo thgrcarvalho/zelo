@@ -204,6 +204,9 @@
           var msg = (data && data.message) ? data.message : ("Request failed (" + res.status + ")");
           var err = new Error(msg);
           err.status = res.status;
+          // Self-heal on a lost/expired session: drop to the login view so no
+          // authenticated screen lingers after the session is gone.
+          if (res.status === 401 && me !== null) { me = null; render(); }
           throw err;
         }
         return data;
@@ -226,10 +229,13 @@
 
   function refresh() {
     return api("/me")
-      .then(function (data) { me = data; })
-      .catch(function (err) { if (err.status === 401) { me = null; } else { throw err; } })
-      .then(render)
-      .catch(fail);
+      .then(function (data) { me = data; render(); })
+      .catch(function (err) {
+        // A 401 means "not logged in" — show the login view. Anything else
+        // (network, 5xx) must still render something, not leave "Loading…" stuck.
+        me = null;
+        if (err.status === 401) { render(); } else { renderError(err); }
+      });
   }
 
   function render() {
@@ -240,15 +246,31 @@
     return renderActive();
   }
 
+  function renderError(err) {
+    renderNav();
+    var msg = (err && err.message) ? err.message : "Couldn't reach the server";
+    app.innerHTML =
+      '<div class="card"><h2>Something went wrong</h2>' +
+      '<p class="muted">' + esc(msg) + "</p>" +
+      '<div class="btn-row"><button class="btn" id="retry">Retry</button></div></div>';
+    document.getElementById("retry").addEventListener("click", function () {
+      app.innerHTML = '<div class="card"><p class="muted">Loading…</p></div>';
+      refresh();
+    });
+  }
+
   function renderNav() {
     if (!me) { navAccount.innerHTML = ""; return; }
     navAccount.innerHTML =
       '<span class="nav-who">' + esc(me.email) + "</span>" +
       '<button class="linkish" id="logout">Log out</button>';
     document.getElementById("logout").addEventListener("click", function () {
-      api("/logout", { method: "POST" }).then(function () {
+      // Always drop to the logged-out view, even if the server call fails — a UI
+      // that still looks authenticated after a logout click is worse than a missed
+      // server-side cookie clear.
+      api("/logout", { method: "POST" }).catch(function () {}).then(function () {
         me = null; render(); toast("Logged out");
-      }).catch(fail);
+      });
     });
   }
 
@@ -392,7 +414,7 @@
           '<div class="field"><label for="ck-wurl">Webhook URL</label>' +
           '<input id="ck-wurl" type="text" placeholder="https://app.example.com/zelo/webhooks"></div>' +
           '<div class="field"><label for="ck-wsec">Webhook secret</label>' +
-          '<input id="ck-wsec" type="text" placeholder="whsec_…"></div>' +
+          '<input id="ck-wsec" type="password" autocomplete="off" placeholder="whsec_…"></div>' +
           '<p class="hint">Provide both or neither — a webhook without a secret would deliver unsigned callbacks.</p>' +
         "</div>" +
       "</details>" +
@@ -450,6 +472,12 @@
     toast("Select and copy the highlighted key");
   }
 
+  /** Remove a previously-revealed raw key from the DOM (called on later actions). */
+  function clearReveal() {
+    var host = document.getElementById("create-host");
+    if (host) host.innerHTML = "";
+  }
+
   function loadKeys() {
     return api("/api-keys").then(function (keys) {
       var host = document.getElementById("keys");
@@ -499,9 +527,12 @@
     if (revBtn) {
       revBtn.addEventListener("click", function () {
         if (!window.confirm('Revoke key "' + k.name + '"? It stops working immediately.')) return;
+        var btn = this;
+        btn.disabled = true;
         api("/api-keys/" + k.id, { method: "DELETE" }).then(function () {
+          clearReveal();  // a stale just-revealed key must not linger after other actions
           toast("Key revoked"); loadKeys();
-        }).catch(fail);
+        }).catch(function (err) { fail(err); btn.disabled = false; });
       });
     }
   }
@@ -516,7 +547,7 @@
         '<div class="field"><label for="wf-url">Webhook URL</label>' +
         '<input id="wf-url" type="text" value="' + esc(k.webhook_url || "") + '" placeholder="https://app.example.com/zelo/webhooks"></div>' +
         '<div class="field"><label for="wf-sec">Webhook secret</label>' +
-        '<input id="wf-sec" type="text" placeholder="whsec_…"></div>' +
+        '<input id="wf-sec" type="password" autocomplete="off" placeholder="whsec_…"></div>' +
         '<div class="btn-row"><button class="btn btn-sm" id="wf-save">Save webhook</button>' +
         '<button class="btn btn-ghost btn-sm" id="wf-cancel">Cancel</button></div>' +
         '<p class="hint">Both fields are required. The secret is write-only — it is never shown back.</p>' +
@@ -528,9 +559,14 @@
       var url = document.getElementById("wf-url").value.trim();
       var sec = document.getElementById("wf-sec").value.trim();
       if (!url || !sec) { toast("Webhook URL and secret are both required", true); return; }
+      var btn = this;
+      btn.disabled = true;
       api("/api-keys/" + k.id + "/webhook", { method: "PATCH", body: { webhook_url: url, webhook_secret: sec } })
-        .then(function () { toast("Webhook updated"); host.innerHTML = ""; host.removeAttribute("data-for"); loadKeys(); })
-        .catch(fail);
+        .then(function () {
+          clearReveal();
+          toast("Webhook updated"); host.innerHTML = ""; host.removeAttribute("data-for"); loadKeys();
+        })
+        .catch(function (err) { fail(err); btn.disabled = false; });
     });
   }
 
@@ -569,11 +605,11 @@
         rows + "</tbody></table>";
       list.forEach(function (a) {
         document.querySelector('[data-approve="' + a.id + '"]').addEventListener("click", function () {
-          decide(a.id, "approve");
+          decide(a.id, "approve", this);
         });
         document.querySelector('[data-reject="' + a.id + '"]').addEventListener("click", function () {
           if (!window.confirm("Reject " + a.email + "?")) return;
-          decide(a.id, "reject");
+          decide(a.id, "reject", this);
         });
       });
     }).catch(function (err) {
@@ -583,11 +619,12 @@
     });
   }
 
-  function decide(accountId, action) {
+  function decide(accountId, action, btn) {
+    if (btn) { btn.disabled = true; }
     api("/admin/accounts/" + accountId + "/" + action, { method: "POST" }).then(function () {
       toast(action === "approve" ? "Account approved" : "Account rejected");
       loadQueue();
-    }).catch(fail);
+    }).catch(function (err) { fail(err); if (btn) { btn.disabled = false; } });
   }
 
   // --- boot -------------------------------------------------------------------
