@@ -2,7 +2,9 @@ package io.github.thgrcarvalho.zelo.infrastructure.web;
 
 import io.github.thgrcarvalho.zelo.application.error.BadRequestException;
 import io.github.thgrcarvalho.zelo.application.error.ConflictException;
+import io.github.thgrcarvalho.zelo.application.error.ForbiddenException;
 import io.github.thgrcarvalho.zelo.application.error.ResourceNotFoundException;
+import io.github.thgrcarvalho.zelo.application.error.UnauthorizedException;
 import io.github.thgrcarvalho.zelo.domain.dsr.InvalidDsrTransitionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,18 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError conflict(ConflictException e) {
         return ApiError.of(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiError unauthorized(UnauthorizedException e) {
+        return ApiError.of(HttpStatus.UNAUTHORIZED, e.getMessage());
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiError forbidden(ForbiddenException e) {
+        return ApiError.of(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
     @ExceptionHandler(InvalidDsrTransitionException.class)

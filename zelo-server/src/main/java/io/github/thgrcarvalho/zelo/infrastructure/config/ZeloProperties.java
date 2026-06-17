@@ -9,6 +9,7 @@ public class ZeloProperties {
     private final Dsr dsr = new Dsr();
     private final Bootstrap bootstrap = new Bootstrap();
     private final Admin admin = new Admin();
+    private final Auth auth = new Auth();
 
     public Dsr getDsr() {
         return dsr;
@@ -20,6 +21,10 @@ public class ZeloProperties {
 
     public Admin getAdmin() {
         return admin;
+    }
+
+    public Auth getAuth() {
+        return auth;
     }
 
     /** Data-subject-request settings. */
@@ -109,6 +114,55 @@ public class ZeloProperties {
 
         public void setMasterKey(String masterKey) {
             this.masterKey = masterKey;
+        }
+    }
+
+    /**
+     * Self-service account auth ({@code /account/**}). {@code session-secret}
+     * blank → session auth fails closed (no dashboard logins). Setting
+     * {@code operator-email} + {@code operator-password} seeds the first operator
+     * (who works the approval queue) on startup.
+     */
+    public static class Auth {
+        /** HMAC key for signing session cookies. Blank disables /account auth (fail-closed). */
+        private String sessionSecret;
+        /** Email of the operator to seed on startup; blank skips seeding. */
+        private String operatorEmail;
+        /** Password for the seeded operator; required when operator-email is set. */
+        private String operatorPassword;
+        /** Session lifetime, in hours (default 7 days). */
+        private int sessionTtlHours = 168;
+
+        public String getSessionSecret() {
+            return sessionSecret;
+        }
+
+        public void setSessionSecret(String sessionSecret) {
+            this.sessionSecret = sessionSecret;
+        }
+
+        public String getOperatorEmail() {
+            return operatorEmail;
+        }
+
+        public void setOperatorEmail(String operatorEmail) {
+            this.operatorEmail = operatorEmail;
+        }
+
+        public String getOperatorPassword() {
+            return operatorPassword;
+        }
+
+        public void setOperatorPassword(String operatorPassword) {
+            this.operatorPassword = operatorPassword;
+        }
+
+        public int getSessionTtlHours() {
+            return sessionTtlHours;
+        }
+
+        public void setSessionTtlHours(int sessionTtlHours) {
+            this.sessionTtlHours = sessionTtlHours;
         }
     }
 }
