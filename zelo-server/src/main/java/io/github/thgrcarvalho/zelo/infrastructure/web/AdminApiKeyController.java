@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,9 +22,10 @@ import java.util.UUID;
 /**
  * Operator-only API-key provisioning, guarded by the admin master key
  * ({@link io.github.thgrcarvalho.zelo.infrastructure.security.AdminAuthFilter})
- * on {@code /admin/**}. Lets an operator onboard a client — mint, list, revoke —
- * without redeploying. The raw key is returned only by {@code create}, never
- * again; listing exposes neither the key hash nor the webhook secret.
+ * on {@code /admin/**}. Lets an operator onboard a client — mint, list, set the
+ * webhook destination, and revoke — without redeploying. The raw key is returned
+ * only by {@code create}, never again; listing exposes neither the key hash nor
+ * the webhook secret.
  */
 @RestController
 @RequestMapping("/admin/api-keys")
@@ -48,6 +50,13 @@ public class AdminApiKeyController {
         return provisioning.list().stream().map(ApiKeyResponse::from).toList();
     }
 
+    @PatchMapping("/{id}/webhook")
+    public ApiKeyResponse updateWebhook(@PathVariable UUID id,
+                                        @Valid @RequestBody UpdateWebhookRequest request) {
+        return ApiKeyResponse.from(
+                provisioning.updateWebhook(id, request.webhookUrl(), request.webhookSecret()));
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revoke(@PathVariable UUID id) {
@@ -59,6 +68,12 @@ public class AdminApiKeyController {
             String webhookUrl,
             String webhookSecret,
             String tier) {
+    }
+
+    /** Both required: a webhook without a signing secret would deliver unsigned callbacks. */
+    public record UpdateWebhookRequest(
+            @NotBlank String webhookUrl,
+            @NotBlank String webhookSecret) {
     }
 
     /** Returned once, at creation — the only time the raw key is exposed. */
