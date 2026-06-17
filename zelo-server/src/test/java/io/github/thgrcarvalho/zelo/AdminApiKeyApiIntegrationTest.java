@@ -16,6 +16,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -133,6 +134,46 @@ class AdminApiKeyApiIntegrationTest extends AbstractIntegrationTest {
         mvc.perform(get("/admin/api-keys").header(HttpHeaders.AUTHORIZATION, ADMIN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.name=='client-rev')].revoked").value(hasItem(true)));
+    }
+
+    @Test
+    void setsWebhookOnAKeyWithoutLeakingTheSecret() throws Exception {
+        String response = mvc.perform(post("/admin/api-keys").header(HttpHeaders.AUTHORIZATION, ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"client-webhook\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = JsonPath.read(response, "$.id");
+
+        mvc.perform(patch("/admin/api-keys/" + id + "/webhook").header(HttpHeaders.AUTHORIZATION, ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"webhook_url\":\"https://app.example.com/zelo/webhooks\","
+                                + "\"webhook_secret\":\"whsec_super_secret\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.webhook_url").value("https://app.example.com/zelo/webhooks"));
+
+        // The secret is stored but never echoed by any read path.
+        mvc.perform(get("/admin/api-keys").header(HttpHeaders.AUTHORIZATION, ADMIN))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("whsec_super_secret"))));
+    }
+
+    @Test
+    void updateWebhookRequiresUrlAndSecret() throws Exception {
+        mvc.perform(patch("/admin/api-keys/" + java.util.UUID.randomUUID() + "/webhook")
+                        .header(HttpHeaders.AUTHORIZATION, ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"webhook_url\":\"\",\"webhook_secret\":\"\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateWebhookOnUnknownKeyReturns404() throws Exception {
+        mvc.perform(patch("/admin/api-keys/" + java.util.UUID.randomUUID() + "/webhook")
+                        .header(HttpHeaders.AUTHORIZATION, ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"webhook_url\":\"https://x.example.com/h\",\"webhook_secret\":\"s\"}"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

@@ -48,6 +48,21 @@ public class ApiKeyProvisioningService {
         return apiKeys.findAll();
     }
 
+    /**
+     * Set a key's webhook destination + signing secret (e.g. to enable
+     * deletion-orchestration delivery once the client's public URL is known).
+     * Replaces both fields. Returns the updated key.
+     */
+    @Transactional
+    public ApiKey updateWebhook(UUID id, String webhookUrl, String webhookSecret) {
+        ApiKey apiKey = apiKeys.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("API key " + id + " not found"));
+        apiKey.updateWebhook(blankToNull(webhookUrl), blankToNull(webhookSecret));
+        apiKeys.save(apiKey);
+        log.info("Updated webhook for API key id={} (name='{}')", apiKey.getId(), apiKey.getName());
+        return apiKey;
+    }
+
     /** Soft-revoke a key by id; idempotent. The key stops authenticating at once. */
     @Transactional
     public void revoke(UUID id) {
