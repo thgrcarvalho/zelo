@@ -6,7 +6,7 @@ Maven Central via the **Central Portal** (`central.sonatype.com`) using the
 The build is already wired for it (sources + javadoc jars, full POM, signing).
 This file is the operator runbook for the parts that need credentials.
 
-## ⚠️ Prerequisite: the starter's only runtime dependency must be on Central first
+## Dependency closure (all on Central)
 
 The published POM declares one runtime dependency:
 
@@ -14,20 +14,15 @@ The published POM declares one runtime dependency:
 io.github.thgrcarvalho:pix-webhook-validator:0.1.0
 ```
 
-That artifact currently lives **only in `mavenLocal`**, not on Maven Central.
-If the starter is published as-is, an external consumer that adds
-`implementation 'io.github.thgrcarvalho:zelo-spring-boot-starter:0.1.0'` will fail
-to resolve `pix-webhook-validator`. So **before** the first Central release, pick one:
+This artifact **is already on Maven Central**
+(`https://repo1.maven.org/maven2/io/github/thgrcarvalho/pix-webhook-validator/0.1.0/`),
+so an external consumer adding
+`implementation 'io.github.thgrcarvalho:zelo-spring-boot-starter:0.1.0'` resolves
+cleanly. There is **no dependency blocker** for the starter release — only the
+credentials/GPG setup below.
 
-- **A. Publish `pix-webhook-validator` to Central first** (it is a separate repo).
-  Preserves the dogfooded-library architecture. Apply this same runbook there,
-  then release the starter.
-- **B. Vendor the HMAC validation into the starter** — inline the small amount of
-  signature-validation code and drop the external dependency, making the starter
-  self-contained. One repo, one release.
-
-> Note: this does **not** affect consuming the starter from `mavenLocal` (e.g. the
-> Vitalio integration), where both artifacts are already present.
+> The legacy `search.maven.org` solr index can report an artifact as missing even
+> when it is present; verify against `repo1.maven.org` (the authoritative CDN).
 
 ## One-time setup
 
