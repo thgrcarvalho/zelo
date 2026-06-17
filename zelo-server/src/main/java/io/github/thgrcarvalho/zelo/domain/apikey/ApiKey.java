@@ -35,17 +35,31 @@ public class ApiKey {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** Optional billing tier (e.g. {@code internal}, {@code free}, {@code pro}); null until billing exists. */
+    @Column(name = "tier")
+    private String tier;
+
+    /** Set when the key is revoked; a revoked key no longer authenticates. */
+    @Column(name = "revoked_at")
+    private Instant revokedAt;
+
     protected ApiKey() {
         // for JPA
     }
 
     public ApiKey(UUID id, String keyHash, String name, String webhookUrl,
                   String webhookSecret, Instant createdAt) {
+        this(id, keyHash, name, webhookUrl, webhookSecret, null, createdAt);
+    }
+
+    public ApiKey(UUID id, String keyHash, String name, String webhookUrl,
+                  String webhookSecret, String tier, Instant createdAt) {
         this.id = id;
         this.keyHash = keyHash;
         this.name = name;
         this.webhookUrl = webhookUrl;
         this.webhookSecret = webhookSecret;
+        this.tier = tier;
         this.createdAt = createdAt;
     }
 
@@ -73,8 +87,33 @@ public class ApiKey {
         return createdAt;
     }
 
+    public String getTier() {
+        return tier;
+    }
+
+    public Instant getRevokedAt() {
+        return revokedAt;
+    }
+
+    public boolean isRevoked() {
+        return revokedAt != null;
+    }
+
     public void updateWebhook(String webhookUrl, String webhookSecret) {
         this.webhookUrl = webhookUrl;
         this.webhookSecret = webhookSecret;
+    }
+
+    /**
+     * Soft-revoke: the key stops authenticating but its rows and audit chain
+     * remain. Returns {@code true} only when this call performed the transition
+     * (the key was still active), so callers can skip a redundant write.
+     */
+    public boolean revoke(Instant when) {
+        if (revokedAt != null) {
+            return false;
+        }
+        this.revokedAt = when;
+        return true;
     }
 }

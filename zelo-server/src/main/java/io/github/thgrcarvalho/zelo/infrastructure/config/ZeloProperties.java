@@ -8,6 +8,7 @@ public class ZeloProperties {
 
     private final Dsr dsr = new Dsr();
     private final Bootstrap bootstrap = new Bootstrap();
+    private final Admin admin = new Admin();
 
     public Dsr getDsr() {
         return dsr;
@@ -15,6 +16,10 @@ public class ZeloProperties {
 
     public Bootstrap getBootstrap() {
         return bootstrap;
+    }
+
+    public Admin getAdmin() {
+        return admin;
     }
 
     /** Data-subject-request settings. */
@@ -87,6 +92,23 @@ public class ZeloProperties {
 
         public void setWebhookSecret(String webhookSecret) {
             this.webhookSecret = webhookSecret;
+        }
+    }
+
+    /**
+     * Master credential guarding the runtime key-provisioning API
+     * ({@code /admin/**}). Leave {@code master-key} blank to disable the admin
+     * API entirely (fail-closed); set a strong value to enable onboarding.
+     */
+    public static class Admin {
+        private String masterKey;
+
+        public String getMasterKey() {
+            return masterKey;
+        }
+
+        public void setMasterKey(String masterKey) {
+            this.masterKey = masterKey;
         }
     }
 }

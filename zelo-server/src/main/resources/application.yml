@@ -57,3 +57,8 @@ zelo:
     name: ${ZELO_BOOTSTRAP_NAME:default}
     webhook-url: ${ZELO_BOOTSTRAP_WEBHOOK_URL:}
     webhook-secret: ${ZELO_BOOTSTRAP_WEBHOOK_SECRET:}
+  admin:
+    # Master key guarding the runtime key-provisioning API (/admin/**). Blank
+    # disables the admin API entirely (fail-closed); set a strong value in prod
+    # to onboard clients without a redeploy.
+    master-key: ${ZELO_ADMIN_MASTER_KEY:}
