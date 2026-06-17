@@ -45,7 +45,8 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
         Optional<ApiKey> match = apiKeys.findByKeyHash(Hashes.sha256Hex(rawKey));
-        if (match.isEmpty()) {
+        if (match.isEmpty() || match.get().isRevoked()) {
+            // Same message for unknown and revoked keys: don't reveal that a key once existed.
             unauthorized(response, "Invalid API key");
             return;
         }
