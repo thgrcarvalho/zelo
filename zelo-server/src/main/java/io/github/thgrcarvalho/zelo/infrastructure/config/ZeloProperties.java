@@ -1,9 +1,13 @@
 package io.github.thgrcarvalho.zelo.infrastructure.config;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 /** Zelo's own configuration, under the {@code zelo.*} prefix. */
 @ConfigurationProperties(prefix = "zelo")
+@Validated
 public class ZeloProperties {
 
     private final Dsr dsr = new Dsr();
@@ -130,7 +134,9 @@ public class ZeloProperties {
         private String operatorEmail;
         /** Password for the seeded operator; required when operator-email is set. */
         private String operatorPassword;
-        /** Session lifetime, in hours (default 7 days). */
+        /** Session lifetime, in hours (default 7 days; bounded 1h–1y so a misconfig can't mint already-expired or absurd sessions). */
+        @Min(1)
+        @Max(8760)
         private int sessionTtlHours = 168;
 
         public String getSessionSecret() {

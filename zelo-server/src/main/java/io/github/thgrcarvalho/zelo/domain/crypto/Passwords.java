@@ -23,6 +23,8 @@ public final class Passwords {
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
     private static final String ID = "pbkdf2-sha256";
     private static final int ITERATIONS = 210_000;
+    /** Upper bound on the iteration count {@link #verify} will honour from a stored hash (anti-DoS). */
+    private static final int MAX_ITERATIONS = 10_000_000;
     private static final int SALT_BYTES = 16;
     private static final int HASH_BITS = 256;
 
@@ -65,7 +67,9 @@ public final class Passwords {
         } catch (IllegalArgumentException e) {
             return false;
         }
-        if (iterations <= 0 || salt.length == 0 || expected.length == 0) {
+        // Cap the embedded iteration count: a malformed/hostile stored value can't
+        // turn verify() into an unbounded-work DoS (and it guards config drift).
+        if (iterations <= 0 || iterations > MAX_ITERATIONS || salt.length == 0 || expected.length == 0) {
             return false;
         }
         byte[] actual = pbkdf2(raw.toCharArray(), salt, iterations, expected.length * 8);

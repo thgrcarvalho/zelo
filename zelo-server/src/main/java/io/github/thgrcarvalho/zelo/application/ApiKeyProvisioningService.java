@@ -55,6 +55,7 @@ public class ApiKeyProvisioningService {
      */
     @Transactional
     public Minted create(UUID accountId, String name, String webhookUrl, String webhookSecret, String tier) {
+        WebhookUrlPolicy.requireDeliverable(webhookUrl);
         String rawKey = RawKeys.generate();
         ApiKey apiKey = new ApiKey(UUID.randomUUID(), Hashes.sha256Hex(rawKey), name,
                 blankToNull(webhookUrl), blankToNull(webhookSecret), blankToNull(tier), accountId, Instant.now());
@@ -72,7 +73,9 @@ public class ApiKeyProvisioningService {
     /** Set the webhook on a key the account owns; 404 if it isn't theirs. */
     @Transactional
     public ApiKey updateWebhookForAccount(UUID accountId, UUID id, String webhookUrl, String webhookSecret) {
+        // Ownership first (404 hides existence), then validate the target (400).
         ApiKey apiKey = ownedByOrNotFound(accountId, id);
+        WebhookUrlPolicy.requireDeliverable(webhookUrl);
         apiKey.updateWebhook(blankToNull(webhookUrl), blankToNull(webhookSecret));
         apiKeys.save(apiKey);
         log.info("Updated webhook for API key id={} (account={})", apiKey.getId(), accountId);

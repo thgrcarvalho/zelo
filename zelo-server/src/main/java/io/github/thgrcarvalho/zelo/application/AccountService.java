@@ -33,7 +33,9 @@ public class AccountService {
      * A well-formed PBKDF2 hash of a value no one uses, verified against when the
      * email is unknown so a login attempt costs the same work whether or not the
      * account exists — closing the timing side channel that would otherwise reveal
-     * which emails are registered.
+     * which emails are registered. Generated via {@link Passwords#hash} so it always
+     * uses the same (current) iteration count as real password hashes, keeping the
+     * timing parity intact if the cost parameters change.
      */
     private static final String ABSENT_ACCOUNT_HASH = Passwords.hash("zelo-no-such-account");
 
@@ -86,10 +88,17 @@ public class AccountService {
         return accounts.findByStatusOrderByCreatedAtAsc(AccountStatus.PENDING);
     }
 
-    /** Operator action: PENDING → ACTIVE. 409 if the account isn't pending. */
+    /**
+     * Operator action: PENDING/REJECTED → ACTIVE. Accepting a REJECTED account
+     * gives a recovery path (an operator can reverse a mistaken rejection); 409 only
+     * if the account is already ACTIVE.
+     */
     @Transactional
     public Account approve(UUID operatorId, UUID accountId) {
-        Account account = requirePending(accountId);
+        Account account = require(accountId);
+        if (account.getStatus() == AccountStatus.ACTIVE) {
+            throw new ConflictException("Account is already active");
+        }
         account.approve(operatorId, Instant.now());
         accounts.save(account);
         log.info("Account {} approved by operator {}", accountId, operatorId);

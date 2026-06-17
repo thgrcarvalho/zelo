@@ -4,6 +4,7 @@ import io.github.thgrcarvalho.zelo.application.error.BadRequestException;
 import io.github.thgrcarvalho.zelo.application.error.ConflictException;
 import io.github.thgrcarvalho.zelo.application.error.ForbiddenException;
 import io.github.thgrcarvalho.zelo.application.error.ResourceNotFoundException;
+import io.github.thgrcarvalho.zelo.application.error.ServiceUnavailableException;
 import io.github.thgrcarvalho.zelo.application.error.UnauthorizedException;
 import io.github.thgrcarvalho.zelo.domain.dsr.InvalidDsrTransitionException;
 import org.slf4j.Logger;
@@ -78,6 +79,12 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError badRequest(BadRequestException e) {
         return ApiError.of(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ApiError serviceUnavailable(ServiceUnavailableException e) {
+        return ApiError.of(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

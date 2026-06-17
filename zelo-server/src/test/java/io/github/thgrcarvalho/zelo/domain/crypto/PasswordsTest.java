@@ -39,4 +39,14 @@ class PasswordsTest {
         assertThat(Passwords.verify("x", "bcrypt$1$2$3")).isFalse();
         assertThat(Passwords.verify("x", "pbkdf2-sha256$notanumber$AA$BB")).isFalse();
     }
+
+    @Test
+    void verifyRejectsAnAbsurdIterationCountInsteadOfRunningIt() {
+        // A hostile/corrupt stored value claiming a huge iteration count must be
+        // rejected outright (anti-DoS), not honoured by computing it.
+        String real = Passwords.hash("correct-password");
+        String[] parts = real.split("\\$");
+        String hostile = parts[0] + "$999999999$" + parts[2] + "$" + parts[3];
+        assertThat(Passwords.verify("correct-password", hostile)).isFalse();
+    }
 }

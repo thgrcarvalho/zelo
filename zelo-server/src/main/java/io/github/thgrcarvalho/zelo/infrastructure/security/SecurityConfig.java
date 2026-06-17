@@ -5,10 +5,14 @@ import io.github.thgrcarvalho.zelo.domain.account.AccountRepository;
 import io.github.thgrcarvalho.zelo.domain.apikey.ApiKeyRepository;
 import io.github.thgrcarvalho.zelo.domain.crypto.SessionTokens;
 import io.github.thgrcarvalho.zelo.infrastructure.config.ZeloProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * Registers the servlet auth filters for three disjoint, URL-scoped surfaces:
@@ -21,6 +25,11 @@ import org.springframework.core.Ordered;
  */
 @Configuration
 public class SecurityConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
+    /** HMAC-SHA256 keys should carry at least 256 bits of secret; warn below this. */
+    private static final int MIN_SESSION_SECRET_BYTES = 32;
 
     @Bean
     public FilterRegistrationBean<ApiKeyAuthFilter> apiKeyAuthFilter(ApiKeyRepository apiKeys,
@@ -51,7 +60,13 @@ public class SecurityConfig {
      */
     @Bean
     public SessionTokens sessionTokens(ZeloProperties properties) {
-        return new SessionTokens(properties.getAuth().getSessionSecret());
+        String secret = properties.getAuth().getSessionSecret();
+        if (secret != null && !secret.isBlank()
+                && secret.getBytes(StandardCharsets.UTF_8).length < MIN_SESSION_SECRET_BYTES) {
+            log.warn("zelo.auth.session-secret is shorter than {} bytes; use a stronger value "
+                    + "(e.g. `openssl rand -base64 48`) for the /account session HMAC", MIN_SESSION_SECRET_BYTES);
+        }
+        return new SessionTokens(secret);
     }
 
     @Bean

@@ -15,10 +15,16 @@ CREATE TABLE accounts (
     org_name      VARCHAR(200) NOT NULL,
     role          VARCHAR(16)  NOT NULL DEFAULT 'USER',    -- USER | OPERATOR
     status        VARCHAR(16)  NOT NULL DEFAULT 'PENDING', -- PENDING | ACTIVE | REJECTED
+    version       BIGINT       NOT NULL DEFAULT 0,         -- JPA @Version: guards concurrent approve/reject
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
     approved_at   TIMESTAMPTZ,                        -- when an operator decided (approve/reject)
     approved_by   UUID                                -- operator account id that decided, nullable
 );
+
+-- The deciding operator is itself an account; mirror the FK discipline used for
+-- api_keys.account_id. Nullable so PENDING rows (no decision yet) stay valid.
+ALTER TABLE accounts ADD CONSTRAINT fk_accounts_approved_by
+    FOREIGN KEY (approved_by) REFERENCES accounts (id);
 
 -- An API key now optionally belongs to an account. Nullable: bootstrap/operator-
 -- minted keys predate accounts and stay account-less (still valid). Self-issued

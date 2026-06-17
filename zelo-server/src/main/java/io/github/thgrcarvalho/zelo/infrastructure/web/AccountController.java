@@ -3,6 +3,7 @@ package io.github.thgrcarvalho.zelo.infrastructure.web;
 import io.github.thgrcarvalho.zelo.application.AccountService;
 import io.github.thgrcarvalho.zelo.application.ApiKeyProvisioningService;
 import io.github.thgrcarvalho.zelo.application.error.ForbiddenException;
+import io.github.thgrcarvalho.zelo.application.error.ServiceUnavailableException;
 import io.github.thgrcarvalho.zelo.domain.account.Account;
 import io.github.thgrcarvalho.zelo.domain.apikey.ApiKey;
 import io.github.thgrcarvalho.zelo.domain.crypto.SessionTokens;
@@ -63,6 +64,7 @@ public class AccountController {
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     public MeResponse signup(@Valid @RequestBody SignupRequest request, HttpServletResponse response) {
+        requireAuthEnabled();
         Account account = accounts.signup(request.email(), request.password(), request.orgName());
         issueSession(response, account.getId());
         return MeResponse.from(account);
@@ -70,6 +72,7 @@ public class AccountController {
 
     @PostMapping("/login")
     public MeResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+        requireAuthEnabled();
         Account account = accounts.authenticate(request.email(), request.password());
         issueSession(response, account.getId());
         return MeResponse.from(account);
@@ -77,9 +80,13 @@ public class AccountController {
 
     // --- Session: self -----------------------------------------------------------
 
+    /**
+     * Public + idempotent: clears the cookie regardless of whether a valid session
+     * is presented, so a user can always drop to a logged-out state.
+     */
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(AccountPrincipal principal, HttpServletResponse response) {
+    public void logout(HttpServletResponse response) {
         clearSession(response);
     }
 
@@ -156,6 +163,17 @@ public class AccountController {
         }
     }
 
+    /**
+     * The /account surface is disabled when no session secret is configured. Guard
+     * signup/login so a misconfigured deploy returns a clean 503 (and never persists
+     * a half-created account) instead of an opaque 500 from minting a session.
+     */
+    private void requireAuthEnabled() {
+        if (!sessionTokens.isConfigured()) {
+            throw new ServiceUnavailableException("Account service is not enabled");
+        }
+    }
+
     // --- Session cookie ----------------------------------------------------------
 
     private void issueSession(HttpServletResponse response, UUID accountId) {
@@ -187,20 +205,20 @@ public class AccountController {
     }
 
     public record LoginRequest(
-            @NotBlank String email,
+            @NotBlank @Email @Size(max = 320) String email,
             @NotBlank String password) {
     }
 
     public record CreateKeyRequest(
-            @NotBlank String name,
-            String webhookUrl,
-            String webhookSecret) {
+            @NotBlank @Size(max = 255) String name,
+            @Size(max = 2048) String webhookUrl,
+            @Size(max = 255) String webhookSecret) {
     }
 
     /** Both required: a webhook without a signing secret would deliver unsigned callbacks. */
     public record UpdateWebhookRequest(
-            @NotBlank String webhookUrl,
-            @NotBlank String webhookSecret) {
+            @NotBlank @Size(max = 2048) String webhookUrl,
+            @NotBlank @Size(max = 255) String webhookSecret) {
     }
 
     /** The current account, as the dashboard sees itself. Never includes the password hash. */

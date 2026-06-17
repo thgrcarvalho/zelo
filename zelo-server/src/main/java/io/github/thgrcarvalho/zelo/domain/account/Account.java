@@ -6,6 +6,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -43,6 +44,11 @@ public class Account {
     @Column(name = "status", nullable = false)
     private AccountStatus status;
 
+    /** Optimistic-lock guard: a concurrent second approve/reject loses with an optimistic-lock failure. */
+    @Version
+    @Column(name = "version", nullable = false)
+    private long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -79,7 +85,7 @@ public class Account {
         return new Account(id, email, passwordHash, orgName, AccountRole.OPERATOR, AccountStatus.ACTIVE, createdAt);
     }
 
-    /** PENDING → ACTIVE, recording the deciding operator. Caller guards the transition. */
+    /** PENDING/REJECTED → ACTIVE, recording the deciding operator. Caller guards the transition. */
     public void approve(UUID operatorId, Instant when) {
         this.status = AccountStatus.ACTIVE;
         this.approvedBy = operatorId;
@@ -91,6 +97,17 @@ public class Account {
         this.status = AccountStatus.REJECTED;
         this.approvedBy = operatorId;
         this.approvedAt = when;
+    }
+
+    /**
+     * Promote an existing account to an active operator. Used only by the startup
+     * seed when {@code zelo.auth.operator-email} names an account that already
+     * exists but is not an active operator — so a fresh deploy always ends up with
+     * a usable operator instead of a silent onboarding deadlock.
+     */
+    public void makeOperator() {
+        this.role = AccountRole.OPERATOR;
+        this.status = AccountStatus.ACTIVE;
     }
 
     public UUID getId() {
