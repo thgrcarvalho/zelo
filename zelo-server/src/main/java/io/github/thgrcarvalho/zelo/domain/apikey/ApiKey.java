@@ -43,6 +43,13 @@ public class ApiKey {
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
+    /**
+     * The self-service account that owns this key, or null for bootstrap/operator-
+     * minted keys that predate accounts. Scopes account-facing key management.
+     */
+    @Column(name = "account_id")
+    private UUID accountId;
+
     protected ApiKey() {
         // for JPA
     }
@@ -54,12 +61,18 @@ public class ApiKey {
 
     public ApiKey(UUID id, String keyHash, String name, String webhookUrl,
                   String webhookSecret, String tier, Instant createdAt) {
+        this(id, keyHash, name, webhookUrl, webhookSecret, tier, null, createdAt);
+    }
+
+    public ApiKey(UUID id, String keyHash, String name, String webhookUrl,
+                  String webhookSecret, String tier, UUID accountId, Instant createdAt) {
         this.id = id;
         this.keyHash = keyHash;
         this.name = name;
         this.webhookUrl = webhookUrl;
         this.webhookSecret = webhookSecret;
         this.tier = tier;
+        this.accountId = accountId;
         this.createdAt = createdAt;
     }
 
@@ -93,6 +106,10 @@ public class ApiKey {
 
     public Instant getRevokedAt() {
         return revokedAt;
+    }
+
+    public UUID getAccountId() {
+        return accountId;
     }
 
     public boolean isRevoked() {

@@ -1,5 +1,6 @@
 package io.github.thgrcarvalho.zelo.infrastructure.web;
 
+import io.github.thgrcarvalho.zelo.infrastructure.security.AccountPrincipalArgumentResolver;
 import io.github.thgrcarvalho.zelo.infrastructure.security.CurrentApiKeyArgumentResolver;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
@@ -13,5 +14,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(new CurrentApiKeyArgumentResolver());
+        resolvers.add(new AccountPrincipalArgumentResolver());
     }
 }
