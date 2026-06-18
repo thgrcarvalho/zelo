@@ -8,6 +8,7 @@ import io.github.thgrcarvalho.zelo.domain.account.Account;
 import io.github.thgrcarvalho.zelo.domain.apikey.ApiKey;
 import io.github.thgrcarvalho.zelo.domain.crypto.SessionTokens;
 import io.github.thgrcarvalho.zelo.infrastructure.config.ZeloProperties;
+import io.github.thgrcarvalho.zelo.infrastructure.email.AccountMailer;
 import io.github.thgrcarvalho.zelo.infrastructure.security.AccountPrincipal;
 import io.github.thgrcarvalho.zelo.infrastructure.security.SessionAuthFilter;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,13 +35,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The self-service account surface, exposed (via nginx) only on the dashboard
- * origin {@code zelocompliance.com/account/**}, never on the {@code api.} host. A
- * {@link SessionAuthFilter}-issued cookie carries the session; the
+ * The self-service account surface, exposed (via nginx) only on the dashboard origin
+ * {@code zelocompliance.com/account/**}, never on the {@code api.} host. Onboarding
+ * is instant + email-verified: signup emails a verification link, clicking it
+ * activates the account, and an ACTIVE account self-issues API keys. A
+ * {@link SessionAuthFilter}-issued cookie carries the session; declaring an
  * {@link AccountPrincipal} parameter makes a method authentication-required (the
- * resolver 401s when absent). ACTIVE/OPERATOR authorization is checked here, and
- * key operations delegate to the account-scoped {@link ApiKeyProvisioningService}
- * methods, which enforce tenant isolation server-side.
+ * resolver 401s when absent). Verification emails are dispatched via the async
+ * {@link AccountMailer} AFTER the service transaction commits.
  */
 @RestController
 @RequestMapping("/account")
@@ -48,25 +50,42 @@ public class AccountController {
 
     private final AccountService accounts;
     private final ApiKeyProvisioningService provisioning;
+    private final AccountMailer mailer;
     private final SessionTokens sessionTokens;
     private final ZeloProperties properties;
 
     public AccountController(AccountService accounts, ApiKeyProvisioningService provisioning,
-                            SessionTokens sessionTokens, ZeloProperties properties) {
+                            AccountMailer mailer, SessionTokens sessionTokens, ZeloProperties properties) {
         this.accounts = accounts;
         this.provisioning = provisioning;
+        this.mailer = mailer;
         this.sessionTokens = sessionTokens;
         this.properties = properties;
     }
 
-    // --- Public: signup / login ------------------------------------------------
+    // --- Public: signup / verify / login / password reset -----------------------
 
+    /**
+     * Register an integrator. Enumeration-safe: returns the same 202 + body whether
+     * the email is new, already registered, or invalid-after-validation, so a caller
+     * can't probe which emails exist. A verification email is sent (async) when there
+     * is one to send.
+     */
     @PostMapping("/signup")
-    @ResponseStatus(HttpStatus.CREATED)
-    public MeResponse signup(@Valid @RequestBody SignupRequest request, HttpServletResponse response) {
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Ack signup(@Valid @RequestBody SignupRequest request) {
         requireAuthEnabled();
-        Account account = accounts.signup(request.email(), request.password(), request.orgName());
-        issueSession(response, account.getId());
+        accounts.signup(request.email(), request.password(), request.orgName())
+                .ifPresent(d -> mailer.sendVerification(d.email(), d.rawToken()));
+        return Ack.CHECK_EMAIL;
+    }
+
+    /** Redeem a verification link: UNVERIFIED → ACTIVE, and log the account in. */
+    @PostMapping("/verify-email")
+    public MeResponse verifyEmail(@Valid @RequestBody VerifyEmailRequest request, HttpServletResponse response) {
+        requireAuthEnabled();
+        Account account = accounts.verifyEmail(request.token());
+        issueSession(response, account);
         return MeResponse.from(account);
     }
 
@@ -74,8 +93,25 @@ public class AccountController {
     public MeResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
         requireAuthEnabled();
         Account account = accounts.authenticate(request.email(), request.password());
-        issueSession(response, account.getId());
+        issueSession(response, account);
         return MeResponse.from(account);
+    }
+
+    /** Begin a password reset. Always 204 (enumeration-safe); emails a link when the account exists. */
+    @PostMapping("/password-reset/request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        requireAuthEnabled();
+        accounts.requestPasswordReset(request.email())
+                .ifPresent(d -> mailer.sendPasswordReset(d.email(), d.rawToken()));
+    }
+
+    /** Complete a password reset. 204; invalidates all existing sessions (no auto-login). */
+    @PostMapping("/password-reset/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
+        requireAuthEnabled();
+        accounts.resetPassword(request.token(), request.password());
     }
 
     // --- Session: self -----------------------------------------------------------
@@ -93,6 +129,14 @@ public class AccountController {
     @GetMapping("/me")
     public MeResponse me(AccountPrincipal principal) {
         return MeResponse.from(accounts.require(principal.id()));
+    }
+
+    /** Re-send the verification email for the signed-in (unverified) account. Always 204. */
+    @PostMapping("/verify-email/resend")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resendVerification(AccountPrincipal principal) {
+        accounts.resendVerification(principal.id())
+                .ifPresent(d -> mailer.sendVerification(d.email(), d.rawToken()));
     }
 
     // --- Session + ACTIVE: own API keys -----------------------------------------
@@ -129,44 +173,18 @@ public class AccountController {
         provisioning.revokeForAccount(principal.id(), id);
     }
 
-    // --- Session + OPERATOR: approval queue -------------------------------------
-
-    @GetMapping("/admin/pending")
-    public List<AccountSummaryResponse> pending(AccountPrincipal principal) {
-        requireOperator(principal);
-        return accounts.pending().stream().map(AccountSummaryResponse::from).toList();
-    }
-
-    @PostMapping("/admin/accounts/{id}/approve")
-    public AccountSummaryResponse approve(AccountPrincipal principal, @PathVariable UUID id) {
-        requireOperator(principal);
-        return AccountSummaryResponse.from(accounts.approve(principal.id(), id));
-    }
-
-    @PostMapping("/admin/accounts/{id}/reject")
-    public AccountSummaryResponse reject(AccountPrincipal principal, @PathVariable UUID id) {
-        requireOperator(principal);
-        return AccountSummaryResponse.from(accounts.reject(principal.id(), id));
-    }
-
     // --- Authorization guards ----------------------------------------------------
 
     private static void requireActive(AccountPrincipal principal) {
         if (!principal.isActive()) {
-            throw new ForbiddenException("Account is not active; an operator must approve it first");
-        }
-    }
-
-    private static void requireOperator(AccountPrincipal principal) {
-        if (!principal.isOperator()) {
-            throw new ForbiddenException("Operator role required");
+            throw new ForbiddenException("Verify your email to activate your account first");
         }
     }
 
     /**
      * The /account surface is disabled when no session secret is configured. Guard
-     * signup/login so a misconfigured deploy returns a clean 503 (and never persists
-     * a half-created account) instead of an opaque 500 from minting a session.
+     * the public endpoints so a misconfigured deploy returns a clean 503 (and never
+     * persists a half-created account) instead of an opaque 500 from minting a session.
      */
     private void requireAuthEnabled() {
         if (!sessionTokens.isConfigured()) {
@@ -176,9 +194,9 @@ public class AccountController {
 
     // --- Session cookie ----------------------------------------------------------
 
-    private void issueSession(HttpServletResponse response, UUID accountId) {
+    private void issueSession(HttpServletResponse response, Account account) {
         Duration ttl = Duration.ofHours(properties.getAuth().getSessionTtlHours());
-        String token = sessionTokens.mint(accountId, ttl);
+        String token = sessionTokens.mint(account.getId(), account.getPasswordChangedAt().toEpochMilli(), ttl);
         response.addHeader(HttpHeaders.SET_COOKIE, sessionCookie(token, ttl).toString());
     }
 
@@ -209,6 +227,17 @@ public class AccountController {
             @NotBlank String password) {
     }
 
+    public record VerifyEmailRequest(@NotBlank @Size(max = 512) String token) {
+    }
+
+    public record PasswordResetRequest(@NotBlank @Email @Size(max = 320) String email) {
+    }
+
+    public record PasswordResetConfirmRequest(
+            @NotBlank @Size(max = 512) String token,
+            @NotBlank @Size(min = 8, max = 200) String password) {
+    }
+
     public record CreateKeyRequest(
             @NotBlank @Size(max = 255) String name,
             @Size(max = 2048) String webhookUrl,
@@ -221,11 +250,17 @@ public class AccountController {
             @NotBlank @Size(max = 255) String webhookSecret) {
     }
 
+    /** A uniform, non-revealing acknowledgement for signup (and other fire-and-email flows). */
+    public record Ack(String message) {
+        static final Ack CHECK_EMAIL =
+                new Ack("Check your email for a link to verify your address and finish signing up.");
+    }
+
     /** The current account, as the dashboard sees itself. Never includes the password hash. */
-    public record MeResponse(UUID id, String email, String orgName, String role, String status) {
+    public record MeResponse(UUID id, String email, String orgName, String status, boolean emailVerified) {
 
         static MeResponse from(Account a) {
-            return new MeResponse(a.getId(), a.getEmail(), a.getOrgName(), a.getRole().name(), a.getStatus().name());
+            return new MeResponse(a.getId(), a.getEmail(), a.getOrgName(), a.getStatus().name(), a.isVerified());
         }
     }
 
@@ -245,16 +280,6 @@ public class AccountController {
         static ApiKeyResponse from(ApiKey k) {
             return new ApiKeyResponse(k.getId(), k.getName(), k.getTier(), k.getWebhookUrl(),
                     k.getCreatedAt(), k.getRevokedAt(), k.isRevoked());
-        }
-    }
-
-    /** Operator-facing view of an account in the approval queue. No password hash. */
-    public record AccountSummaryResponse(UUID id, String email, String orgName, String role,
-                                         String status, Instant createdAt) {
-
-        static AccountSummaryResponse from(Account a) {
-            return new AccountSummaryResponse(a.getId(), a.getEmail(), a.getOrgName(),
-                    a.getRole().name(), a.getStatus().name(), a.getCreatedAt());
         }
     }
 }

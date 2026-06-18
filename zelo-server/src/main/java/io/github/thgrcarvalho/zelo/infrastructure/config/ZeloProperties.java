@@ -14,6 +14,7 @@ public class ZeloProperties {
     private final Bootstrap bootstrap = new Bootstrap();
     private final Admin admin = new Admin();
     private final Auth auth = new Auth();
+    private final Mail mail = new Mail();
 
     public Dsr getDsr() {
         return dsr;
@@ -29,6 +30,10 @@ public class ZeloProperties {
 
     public Auth getAuth() {
         return auth;
+    }
+
+    public Mail getMail() {
+        return mail;
     }
 
     /** Data-subject-request settings. */
@@ -122,18 +127,13 @@ public class ZeloProperties {
     }
 
     /**
-     * Self-service account auth ({@code /account/**}). {@code session-secret}
-     * blank → session auth fails closed (no dashboard logins). Setting
-     * {@code operator-email} + {@code operator-password} seeds the first operator
-     * (who works the approval queue) on startup.
+     * Self-service account auth ({@code /account/**}). {@code session-secret} blank →
+     * session auth fails closed (no dashboard logins). Onboarding is instant +
+     * email-gated (see {@link Mail}); there is no operator to seed.
      */
     public static class Auth {
         /** HMAC key for signing session cookies. Blank disables /account auth (fail-closed). */
         private String sessionSecret;
-        /** Email of the operator to seed on startup; blank skips seeding. */
-        private String operatorEmail;
-        /** Password for the seeded operator; required when operator-email is set. */
-        private String operatorPassword;
         /** Session lifetime, in hours (default 7 days; bounded 1h–1y so a misconfig can't mint already-expired or absurd sessions). */
         @Min(1)
         @Max(8760)
@@ -147,28 +147,120 @@ public class ZeloProperties {
             this.sessionSecret = sessionSecret;
         }
 
-        public String getOperatorEmail() {
-            return operatorEmail;
-        }
-
-        public void setOperatorEmail(String operatorEmail) {
-            this.operatorEmail = operatorEmail;
-        }
-
-        public String getOperatorPassword() {
-            return operatorPassword;
-        }
-
-        public void setOperatorPassword(String operatorPassword) {
-            this.operatorPassword = operatorPassword;
-        }
-
         public int getSessionTtlHours() {
             return sessionTtlHours;
         }
 
         public void setSessionTtlHours(int sessionTtlHours) {
             this.sessionTtlHours = sessionTtlHours;
+        }
+    }
+
+    /**
+     * Transactional email for verification + password reset ({@code zelo.mail.*}).
+     * {@code enabled=false} (default) uses a logging no-op sender; with
+     * {@code require-verification=true} that makes signup fail closed (503) rather
+     * than activate an unverified account. The standard {@code spring.mail.*} keys
+     * drive the SMTP transport (Resend by default).
+     */
+    public static class Mail {
+        /** Master switch; false ⇒ the logging no-op sender (no real mail). */
+        private boolean enabled = false;
+        /** From-address, e.g. no-reply@zelocompliance.com. Required when enabled. */
+        private String from;
+        /** Optional Reply-To. */
+        private String replyTo;
+        /** Absolute https base for verify/reset links (no path), e.g. https://zelocompliance.com. Required when enabled. */
+        private String baseUrl;
+        /** When true, signup creates an UNVERIFIED account + sends a verify email; fail-closed if mail is off. */
+        private boolean requireVerification = true;
+        /** Verification-link lifetime, hours. */
+        @Min(1)
+        @Max(72)
+        private int verificationTtlHours = 24;
+        /** Password-reset-link lifetime, minutes (kept short). */
+        @Min(5)
+        @Max(240)
+        private int resetTtlMinutes = 30;
+        /** Minimum gap between resend / reset-request emails to one account, seconds. */
+        @Min(15)
+        @Max(86400)
+        private int resendCooldownSeconds = 60;
+        /** Per-account cap on verification/reset emails in a rolling 24h (anti mailbox-bomb). */
+        @Min(1)
+        @Max(100)
+        private int dailyEmailsPerAccount = 5;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getFrom() {
+            return from;
+        }
+
+        public void setFrom(String from) {
+            this.from = from;
+        }
+
+        public String getReplyTo() {
+            return replyTo;
+        }
+
+        public void setReplyTo(String replyTo) {
+            this.replyTo = replyTo;
+        }
+
+        public String getBaseUrl() {
+            return baseUrl;
+        }
+
+        public void setBaseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
+        }
+
+        public boolean isRequireVerification() {
+            return requireVerification;
+        }
+
+        public void setRequireVerification(boolean requireVerification) {
+            this.requireVerification = requireVerification;
+        }
+
+        public int getVerificationTtlHours() {
+            return verificationTtlHours;
+        }
+
+        public void setVerificationTtlHours(int verificationTtlHours) {
+            this.verificationTtlHours = verificationTtlHours;
+        }
+
+        public int getResetTtlMinutes() {
+            return resetTtlMinutes;
+        }
+
+        public void setResetTtlMinutes(int resetTtlMinutes) {
+            this.resetTtlMinutes = resetTtlMinutes;
+        }
+
+        public int getResendCooldownSeconds() {
+            return resendCooldownSeconds;
+        }
+
+        public void setResendCooldownSeconds(int resendCooldownSeconds) {
+            this.resendCooldownSeconds = resendCooldownSeconds;
+        }
+
+        public int getDailyEmailsPerAccount() {
+            return dailyEmailsPerAccount;
+        }
+
+        public void setDailyEmailsPerAccount(int dailyEmailsPerAccount) {
+            this.dailyEmailsPerAccount = dailyEmailsPerAccount;
         }
     }
 }

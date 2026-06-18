@@ -26,4 +26,16 @@ public final class RawKeys {
         RANDOM.nextBytes(bytes);
         return PREFIX + ENCODER.encodeToString(bytes);
     }
+
+    /**
+     * A new opaque, unprefixed token for email verification / password reset: 256
+     * bits of URL-safe Base64, safe to drop into a URL fragment. No {@code zk_}
+     * prefix (it is not an API key and should not trip API-key secret scanners);
+     * stored only as its hash, like {@link #generate()}.
+     */
+    public static String generateToken() {
+        byte[] bytes = new byte[ENTROPY_BYTES];
+        RANDOM.nextBytes(bytes);
+        return ENCODER.encodeToString(bytes);
+    }
 }

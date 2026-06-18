@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
 <title>Zelo — Dashboard</title>
-<meta name="description" content="Zelo developer dashboard: create an account, get approved, and self-issue API keys to integrate the LGPD compliance control plane.">
+<meta name="description" content="Zelo developer dashboard: create an account, verify your email, and self-issue API keys to integrate the LGPD compliance control plane.">
 <meta name="robots" content="noindex">
 <style>
   :root {
@@ -69,6 +70,8 @@
   }
   input:focus { border-color: var(--teal); outline: none; }
   .hint { font-size: 12.5px; color: var(--muted); margin: 5px 0 0; }
+  .linklike { background: none; border: none; color: var(--green); font-family: inherit; font-size: 13.5px; cursor: pointer; padding: 0; margin-top: 12px; }
+  .linklike:hover { text-decoration: underline; }
 
   .btn { font-family: var(--sans); font-size: 15px; font-weight: 600; border: none; cursor: pointer; border-radius: 9px; padding: 11px 18px; background: var(--green); color: var(--ink); display: inline-block; transition: background 0.15s ease; }
   .btn:hover { background: var(--teal); }
@@ -99,7 +102,6 @@
   .badge.ok { color: var(--green); border-color: rgba(16,185,129,0.4); }
   .badge.warn { color: var(--amber); border-color: rgba(245,158,11,0.4); }
   .badge.off { color: var(--muted); }
-  .badge.role { color: var(--blue); border-color: rgba(59,130,246,0.4); }
 
   /* ---------- Key reveal ---------- */
   .reveal { border: 1px solid rgba(16,185,129,0.45); background: rgba(16,185,129,0.06); border-radius: 12px; padding: 16px; margin: 16px 0; }
@@ -205,8 +207,9 @@
           var err = new Error(msg);
           err.status = res.status;
           // Self-heal on a lost/expired session: drop to the login view so no
-          // authenticated screen lingers after the session is gone.
-          if (res.status === 401 && me !== null) { me = null; render(); }
+          // authenticated screen lingers after the session is gone. Mark it handled
+          // so the caller's .catch doesn't also toast a confusing 401 error.
+          if (res.status === 401 && me !== null) { me = null; render(); err.handled = true; }
           throw err;
         }
         return data;
@@ -215,13 +218,14 @@
   }
 
   function fail(err) {
+    // A handled 401 already self-healed to the login view — don't also toast it.
+    if (err && err.handled) return;
     toast(err && err.message ? err.message : "Something went wrong", true);
   }
 
   function statusBadge(status) {
     if (status === "ACTIVE") return '<span class="badge ok">ACTIVE</span>';
-    if (status === "PENDING") return '<span class="badge warn">PENDING</span>';
-    if (status === "REJECTED") return '<span class="badge off">REJECTED</span>';
+    if (status === "UNVERIFIED") return '<span class="badge warn">UNVERIFIED</span>';
     return '<span class="badge">' + esc(status) + "</span>";
   }
 
@@ -241,8 +245,7 @@
   function render() {
     renderNav();
     if (!me) return renderAuth();
-    if (me.status === "PENDING") return renderPending();
-    if (me.status === "REJECTED") return renderRejected();
+    if (me.status === "UNVERIFIED") return renderUnverified();
     return renderActive();
   }
 
@@ -281,7 +284,7 @@
       '<span class="eyebrow">Developer access</span>' +
       '<h1 class="title">Your Zelo dashboard</h1>' +
       '<p class="lead">Create an account to self-issue API keys for the LGPD compliance control plane. ' +
-      "New accounts are reviewed by an operator before they can mint keys.</p>" +
+      "Verify your email and you can issue keys right away — no waiting on approval.</p>" +
       '<div class="card auth-card">' +
         '<div class="toggle" role="tablist">' +
           '<button id="tab-login" class="on">Log in</button>' +
@@ -308,7 +311,8 @@
       '<input id="li-email" type="email" autocomplete="email"></div>' +
       '<div class="field"><label for="li-pass">Password</label>' +
       '<input id="li-pass" type="password" autocomplete="current-password"></div>' +
-      '<button class="btn" id="li-submit">Log in</button>'
+      '<button class="btn" id="li-submit">Log in</button>' +
+      '<div><button class="linklike" id="li-forgot">Forgot password?</button></div>'
     );
   }
 
@@ -323,6 +327,7 @@
         me = data; render(); toast("Welcome back");
       }).catch(function (err) { fail(err); btn.disabled = false; });
     });
+    document.getElementById("li-forgot").addEventListener("click", renderForgotPassword);
   }
 
   function signupForm() {
@@ -342,52 +347,167 @@
   function wireSignup() {
     document.getElementById("su-submit").addEventListener("click", function () {
       var btn = this;
+      var email = document.getElementById("su-email").value.trim();
       var pass = document.getElementById("su-pass").value;
       if (pass.length < 8) { toast("Password must be at least 8 characters", true); return; }
       btn.disabled = true;
       api("/signup", { method: "POST", body: {
-        email: document.getElementById("su-email").value.trim(),
+        email: email,
         org_name: document.getElementById("su-org").value.trim(),
         password: pass
-      } }).then(function (data) {
-        me = data; render(); toast("Account created — awaiting approval");
+      } }).then(function () {
+        renderCheckEmail(email);
       }).catch(function (err) { fail(err); btn.disabled = false; });
     });
   }
 
-  // --- pending / rejected -----------------------------------------------------
+  // --- email verification: check-inbox / resend / landing --------------------
 
-  function renderPending() {
+  function renderCheckEmail(email) {
+    me = null;
+    renderNav();
+    app.innerHTML =
+      '<span class="eyebrow">Almost there</span>' +
+      '<h1 class="title">Check your email</h1>' +
+      '<div class="card">' +
+        "<p>If <strong>" + esc(email) + "</strong> can be registered, we've sent it a link to " +
+        "verify your address and finish signing up.</p>" +
+        '<p class="muted">The link opens this dashboard and activates your account. ' +
+        "Didn't get it? Check spam, or sign in to resend.</p>" +
+        '<div class="btn-row"><button class="btn btn-ghost" id="back-signin">Back to sign in</button></div>' +
+      "</div>";
+    document.getElementById("back-signin").addEventListener("click", function () { render(); });
+  }
+
+  function renderUnverified() {
     app.innerHTML =
       '<span class="eyebrow">Account status</span>' +
-      '<h1 class="title">Awaiting approval</h1>' +
+      '<h1 class="title">Verify your email</h1>' +
       '<div class="card">' +
         "<p>Your account <strong>" + esc(me.email) + "</strong> (" + esc(me.org_name) + ") is " +
-        statusBadge("PENDING") + ".</p>" +
-        '<p class="muted">An operator reviews new accounts before they can issue API keys. ' +
-        "You'll be able to create keys here once approved. In the meantime, read the " +
-        '<a href="/docs/">integration guide</a>.</p>' +
+        statusBadge("UNVERIFIED") + ".</p>" +
+        '<p class="muted">We emailed a verification link to <strong>' + esc(me.email) + "</strong>. " +
+        "Click it to activate your account and start issuing API keys.</p>" +
+        '<div class="btn-row"><button class="btn" id="resend">Resend email</button></div>' +
       "</div>";
+    document.getElementById("resend").addEventListener("click", function () {
+      var btn = this;
+      btn.disabled = true;
+      api("/verify-email/resend", { method: "POST" }).then(function () {
+        toast("If your address still needs verifying, we've sent a fresh link.");
+      }).catch(function (err) { fail(err); }).then(function () {
+        setTimeout(function () { btn.disabled = false; }, 2000);
+      });
+    });
   }
 
-  function renderRejected() {
+  // Landing for the emailed verify link (#verify=<token>). The token is consumed
+  // only on an explicit click — never auto-POSTed — so an email scanner that
+  // prefetches the link can't silently burn the one-time token.
+  function renderVerifyLanding(token) {
+    me = null;
+    renderNav();
     app.innerHTML =
-      '<span class="eyebrow">Account status</span>' +
-      '<h1 class="title">Account not approved</h1>' +
-      '<div class="card"><p>Your account <strong>' + esc(me.email) + "</strong> was not approved. " +
-      'If you think this is a mistake, reach out via <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">GitHub</a>.</p></div>';
+      '<span class="eyebrow">Verify email</span>' +
+      '<h1 class="title">Confirm your email</h1>' +
+      '<div class="card">' +
+        "<p>Click below to verify your email address and activate your Zelo account.</p>" +
+        '<div class="btn-row"><button class="btn" id="verify-go">Verify my email</button></div>' +
+      "</div>";
+    document.getElementById("verify-go").addEventListener("click", function () {
+      var btn = this;
+      btn.disabled = true;
+      api("/verify-email", { method: "POST", body: { token: token } }).then(function (data) {
+        me = data; render(); toast("Email verified — welcome to Zelo!");
+      }).catch(function () {
+        app.innerHTML =
+          '<span class="eyebrow">Verify email</span>' +
+          '<h1 class="title">Link invalid or expired</h1>' +
+          '<div class="card"><p class="muted">This verification link is invalid, already used, or expired. ' +
+          "Sign in and resend a fresh one.</p>" +
+          '<div class="btn-row"><button class="btn" id="to-signin">Go to sign in</button></div></div>';
+        document.getElementById("to-signin").addEventListener("click", function () { render(); });
+      });
+    });
   }
 
-  // --- active: keys (+ operator queue) ---------------------------------------
+  // --- password reset: request / landing -------------------------------------
+
+  function renderForgotPassword() {
+    me = null;
+    renderNav();
+    app.innerHTML =
+      '<span class="eyebrow">Password reset</span>' +
+      '<h1 class="title">Reset your password</h1>' +
+      '<div class="card auth-card">' +
+        '<div class="field"><label for="fp-email">Email</label>' +
+        '<input id="fp-email" type="email" autocomplete="email"></div>' +
+        '<button class="btn" id="fp-submit">Send reset link</button>' +
+        '<div><button class="linklike" id="fp-back">Back to sign in</button></div>' +
+      "</div>";
+    document.getElementById("fp-back").addEventListener("click", function () { render(); });
+    document.getElementById("fp-submit").addEventListener("click", function () {
+      var btn = this;
+      btn.disabled = true;
+      api("/password-reset/request", { method: "POST", body: {
+        email: document.getElementById("fp-email").value.trim()
+      } }).then(function () {
+        app.innerHTML =
+          '<span class="eyebrow">Password reset</span>' +
+          '<h1 class="title">Check your email</h1>' +
+          '<div class="card"><p>If an account exists for that address, we\'ve sent a link to reset ' +
+          "your password. The link opens here.</p>" +
+          '<div class="btn-row"><button class="btn btn-ghost" id="fp-done">Back to sign in</button></div></div>';
+        document.getElementById("fp-done").addEventListener("click", function () { render(); });
+      }).catch(function (err) { fail(err); btn.disabled = false; });
+    });
+  }
+
+  // Landing for the emailed reset link (#reset=<token>).
+  function renderResetPassword(token) {
+    me = null;
+    renderNav();
+    app.innerHTML =
+      '<span class="eyebrow">Password reset</span>' +
+      '<h1 class="title">Choose a new password</h1>' +
+      '<div class="card auth-card">' +
+        '<div class="field"><label for="rp-pass">New password</label>' +
+        '<input id="rp-pass" type="password" autocomplete="new-password">' +
+        '<p class="hint">At least 8 characters.</p></div>' +
+        '<div class="field"><label for="rp-confirm">Confirm password</label>' +
+        '<input id="rp-confirm" type="password" autocomplete="new-password"></div>' +
+        '<button class="btn" id="rp-submit">Set new password</button>' +
+      "</div>";
+    document.getElementById("rp-submit").addEventListener("click", function () {
+      var btn = this;
+      var pass = document.getElementById("rp-pass").value;
+      var confirm = document.getElementById("rp-confirm").value;
+      if (pass.length < 8) { toast("Password must be at least 8 characters", true); return; }
+      if (pass !== confirm) { toast("Passwords don't match", true); return; }
+      btn.disabled = true;
+      api("/password-reset/confirm", { method: "POST", body: { token: token, password: pass } }).then(function () {
+        me = null; render();
+        toast("Password updated — please log in.");
+      }).catch(function () {
+        app.innerHTML =
+          '<span class="eyebrow">Password reset</span>' +
+          '<h1 class="title">Link invalid or expired</h1>' +
+          '<div class="card"><p class="muted">This reset link is invalid, already used, or expired. ' +
+          "Request a fresh one from the sign-in page.</p>" +
+          '<div class="btn-row"><button class="btn" id="rp-restart">Back to sign in</button></div></div>';
+        document.getElementById("rp-restart").addEventListener("click", function () { render(); });
+      });
+    });
+  }
+
+  // --- active: keys -----------------------------------------------------------
 
   function renderActive() {
-    var isOp = me.role === "OPERATOR";
     app.innerHTML =
       '<span class="eyebrow">Dashboard</span>' +
       '<h1 class="title">API keys</h1>' +
       '<p class="lead">Issue keys for <strong>' + esc(me.org_name) + "</strong>, point them at your webhook, " +
       'and revoke them when you rotate. New here? Start with the <a href="/docs/">integration guide</a>.</p>' +
-      (isOp ? '<p><span class="badge role">OPERATOR</span></p>' : "") +
       '<div class="card">' +
         "<h2>Create a key</h2>" +
         '<p class="sub">The raw key is shown once, at creation. Store it immediately — it is never displayed again.</p>' +
@@ -397,12 +517,10 @@
       '<div class="card">' +
         "<h2>Your keys</h2>" +
         '<div id="keys" class="tbl-wrap"><p class="empty">Loading keys…</p></div>' +
-      "</div>" +
-      (isOp ? operatorSection() : "");
+      "</div>";
 
     wireCreateForm();
     loadKeys();
-    if (isOp) loadQueue();
   }
 
   function createForm() {
@@ -570,65 +688,24 @@
     });
   }
 
-  // --- operator: approval queue ----------------------------------------------
-
-  function operatorSection() {
-    return (
-      '<div class="card">' +
-        "<h2>Approval queue</h2>" +
-        '<p class="sub">Accounts awaiting a decision. Approving lets them issue keys; rejecting blocks them.</p>' +
-        '<div id="queue" class="tbl-wrap"><p class="empty">Loading queue…</p></div>' +
-      "</div>"
-    );
-  }
-
-  function loadQueue() {
-    return api("/admin/pending").then(function (list) {
-      var host = document.getElementById("queue");
-      if (!host) return;
-      if (!list || list.length === 0) {
-        host.innerHTML = '<p class="empty">Nothing pending. 🎉</p>';
-        return;
-      }
-      var rows = list.map(function (a) {
-        return "<tr>" +
-          "<td>" + esc(a.email) + "</td>" +
-          "<td>" + esc(a.org_name) + "</td>" +
-          '<td class="mono">' + esc((a.created_at || "").slice(0, 10)) + "</td>" +
-          '<td><div class="row-actions">' +
-            '<button class="btn btn-sm" data-approve="' + esc(a.id) + '">Approve</button>' +
-            '<button class="btn btn-danger btn-sm" data-reject="' + esc(a.id) + '">Reject</button>' +
-          "</div></td></tr>";
-      }).join("");
-      host.innerHTML =
-        '<table class="tbl"><thead><tr><th>Email</th><th>Org</th><th>Requested</th><th></th></tr></thead><tbody>' +
-        rows + "</tbody></table>";
-      list.forEach(function (a) {
-        document.querySelector('[data-approve="' + a.id + '"]').addEventListener("click", function () {
-          decide(a.id, "approve", this);
-        });
-        document.querySelector('[data-reject="' + a.id + '"]').addEventListener("click", function () {
-          if (!window.confirm("Reject " + a.email + "?")) return;
-          decide(a.id, "reject", this);
-        });
-      });
-    }).catch(function (err) {
-      var host = document.getElementById("queue");
-      if (host) host.innerHTML = '<p class="empty">Could not load the queue.</p>';
-      fail(err);
-    });
-  }
-
-  function decide(accountId, action, btn) {
-    if (btn) { btn.disabled = true; }
-    api("/admin/accounts/" + accountId + "/" + action, { method: "POST" }).then(function () {
-      toast(action === "approve" ? "Account approved" : "Account rejected");
-      loadQueue();
-    }).catch(function (err) { fail(err); if (btn) { btn.disabled = false; } });
-  }
-
   // --- boot -------------------------------------------------------------------
-  refresh();
+
+  // The verify/reset emails point at /app/#verify=<token> or /app/#reset=<token>.
+  // A URL fragment never reaches the server (not in nginx logs, not in Referer).
+  // Read it, strip it from the address bar/history at once, then route.
+  function boot() {
+    var m = (location.hash || "").match(/^#(verify|reset)=(.+)$/);
+    if (m) {
+      var kind = m[1];
+      var token = decodeURIComponent(m[2]);
+      history.replaceState(null, "", location.pathname + location.search);
+      if (kind === "verify") { renderVerifyLanding(token); return; }
+      if (kind === "reset") { renderResetPassword(token); return; }
+    }
+    refresh();
+  }
+
+  boot();
 })();
 </script>
 </body>
