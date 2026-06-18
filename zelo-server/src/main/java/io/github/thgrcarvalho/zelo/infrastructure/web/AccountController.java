@@ -8,7 +8,6 @@ import io.github.thgrcarvalho.zelo.domain.account.Account;
 import io.github.thgrcarvalho.zelo.domain.apikey.ApiKey;
 import io.github.thgrcarvalho.zelo.domain.crypto.SessionTokens;
 import io.github.thgrcarvalho.zelo.infrastructure.config.ZeloProperties;
-import io.github.thgrcarvalho.zelo.infrastructure.email.AccountMailer;
 import io.github.thgrcarvalho.zelo.infrastructure.security.AccountPrincipal;
 import io.github.thgrcarvalho.zelo.infrastructure.security.SessionAuthFilter;
 import jakarta.servlet.http.HttpServletResponse;
@@ -41,8 +40,8 @@ import java.util.UUID;
  * activates the account, and an ACTIVE account self-issues API keys. A
  * {@link SessionAuthFilter}-issued cookie carries the session; declaring an
  * {@link AccountPrincipal} parameter makes a method authentication-required (the
- * resolver 401s when absent). Verification emails are dispatched via the async
- * {@link AccountMailer} AFTER the service transaction commits.
+ * resolver 401s when absent). Verification/reset emails are dispatched by the
+ * service via an AFTER_COMMIT event, so the controller just returns the response.
  */
 @RestController
 @RequestMapping("/account")
@@ -50,15 +49,13 @@ public class AccountController {
 
     private final AccountService accounts;
     private final ApiKeyProvisioningService provisioning;
-    private final AccountMailer mailer;
     private final SessionTokens sessionTokens;
     private final ZeloProperties properties;
 
     public AccountController(AccountService accounts, ApiKeyProvisioningService provisioning,
-                            AccountMailer mailer, SessionTokens sessionTokens, ZeloProperties properties) {
+                            SessionTokens sessionTokens, ZeloProperties properties) {
         this.accounts = accounts;
         this.provisioning = provisioning;
-        this.mailer = mailer;
         this.sessionTokens = sessionTokens;
         this.properties = properties;
     }
@@ -68,15 +65,14 @@ public class AccountController {
     /**
      * Register an integrator. Enumeration-safe: returns the same 202 + body whether
      * the email is new, already registered, or invalid-after-validation, so a caller
-     * can't probe which emails exist. A verification email is sent (async) when there
-     * is one to send.
+     * can't probe which emails exist. A verification email is sent (async, after
+     * commit) when there is one to send.
      */
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Ack signup(@Valid @RequestBody SignupRequest request) {
         requireAuthEnabled();
-        accounts.signup(request.email(), request.password(), request.orgName())
-                .ifPresent(d -> mailer.sendVerification(d.email(), d.rawToken()));
+        accounts.signup(request.email(), request.password(), request.orgName());
         return Ack.CHECK_EMAIL;
     }
 
@@ -102,8 +98,7 @@ public class AccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
         requireAuthEnabled();
-        accounts.requestPasswordReset(request.email())
-                .ifPresent(d -> mailer.sendPasswordReset(d.email(), d.rawToken()));
+        accounts.requestPasswordReset(request.email());
     }
 
     /** Complete a password reset. 204; invalidates all existing sessions (no auto-login). */
@@ -135,8 +130,7 @@ public class AccountController {
     @PostMapping("/verify-email/resend")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resendVerification(AccountPrincipal principal) {
-        accounts.resendVerification(principal.id())
-                .ifPresent(d -> mailer.sendVerification(d.email(), d.rawToken()));
+        accounts.resendVerification(principal.id());
     }
 
     // --- Session + ACTIVE: own API keys -----------------------------------------

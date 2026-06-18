@@ -1,5 +1,6 @@
 package io.github.thgrcarvalho.zelo.application;
 
+import io.github.thgrcarvalho.zelo.application.email.AccountEmailRequested;
 import io.github.thgrcarvalho.zelo.application.email.EmailSender;
 import io.github.thgrcarvalho.zelo.application.error.BadRequestException;
 import io.github.thgrcarvalho.zelo.application.error.ResourceNotFoundException;
@@ -16,6 +17,7 @@ import io.github.thgrcarvalho.zelo.domain.crypto.RawKeys;
 import io.github.thgrcarvalho.zelo.infrastructure.config.ZeloProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,10 +40,11 @@ import java.util.UUID;
  * top of nginx's per-IP throttle). The session token is minted by the controller;
  * this service validates credentials and mints/redeems tokens.</p>
  *
- * <p>Email is SENT by the controller (via the async mailer) after this service's
- * transaction commits, so SMTP never runs inside a DB transaction and a link never
- * points at a token row that rolled back. These methods return the raw token to
- * dispatch ({@link MailDispatch}) rather than sending it.</p>
+ * <p>Email is dispatched out-of-band: these methods publish an
+ * {@link AccountEmailRequested} event inside the transaction, and an
+ * {@code AFTER_COMMIT} async listener sends it. So SMTP never runs inside a DB
+ * transaction, a link never points at a token row that rolled back, and the
+ * request thread never blocks on (or is timeable by) the send.</p>
  */
 @Service
 public class AccountService {
@@ -60,25 +63,29 @@ public class AccountService {
     private final AccountRepository accounts;
     private final AccountTokenRepository tokens;
     private final EmailSender emailSender;
+    private final ApplicationEventPublisher events;
     private final ZeloProperties.Mail mail;
 
     public AccountService(AccountRepository accounts, AccountTokenRepository tokens,
-                          EmailSender emailSender, ZeloProperties properties) {
+                          EmailSender emailSender, ApplicationEventPublisher events,
+                          ZeloProperties properties) {
         this.accounts = accounts;
         this.tokens = tokens;
         this.emailSender = emailSender;
+        this.events = events;
         this.mail = properties.getMail();
     }
 
     /**
-     * Register a new integrator. Enumeration-safe: returns the same dispatch shape
-     * whether the email is fresh, already registered-but-unverified (a resend), or
-     * already active (no email). A present {@link MailDispatch} means the controller
-     * should send a verification email; empty means send nothing. Fail-closed: 503
-     * when verification is required but mail is unconfigured (before any write).
+     * Register a new integrator. Enumeration-safe: behaves identically whether the
+     * email is fresh, already registered-but-unverified (a quiet resend), or already
+     * active (nothing) — the only observable effect is an out-of-band email. Publishes
+     * an {@link AccountEmailRequested} when a verification link should go out.
+     * Fail-closed: 503 when verification is required but mail is unconfigured (before
+     * any write).
      */
     @Transactional
-    public Optional<MailDispatch> signup(String email, String rawPassword, String orgName) {
+    public void signup(String email, String rawPassword, String orgName) {
         boolean requireVerification = mail.isRequireVerification();
         if (requireVerification && !emailSender.isConfigured()) {
             throw new ServiceUnavailableException("Account signup is temporarily unavailable");
@@ -100,11 +107,12 @@ public class AccountService {
             // email, so server logs aren't a side-channel record of which emails exist.
             if (requireVerification && !existing.isVerified()
                     && !throttled(existing.getId(), TokenPurpose.EMAIL_VERIFICATION, now)) {
-                return Optional.of(reissueVerification(existing.getId(), normalized, now));
+                reissueVerification(existing.getId(), normalized, now);
+            } else {
+                log.info("Signup attempt for an existing account (id={}) — suppressed (enumeration-safe)",
+                        existing.getId());
             }
-            log.info("Signup attempt for an existing account (id={}) — suppressed (enumeration-safe)",
-                    existing.getId());
-            return Optional.empty();
+            return;
         }
 
         Account account = Account.signup(UUID.randomUUID(), normalized, passwordHash, orgName.trim(), now);
@@ -113,13 +121,13 @@ public class AccountService {
             account.markEmailVerified(now);
             accounts.save(account);
             log.info("Account signup (id={}) — ACTIVE (verification disabled)", account.getId());
-            return Optional.empty();
+            return;
         }
         accounts.save(account);
         String raw = mintToken(account.getId(), TokenPurpose.EMAIL_VERIFICATION,
                 Duration.ofHours(mail.getVerificationTtlHours()), now);
+        publishEmail(normalized, raw, TokenPurpose.EMAIL_VERIFICATION);
         log.info("Account signup (id={}) — UNVERIFIED, verification email queued", account.getId());
-        return Optional.of(new MailDispatch(normalized, raw));
     }
 
     /**
@@ -152,46 +160,47 @@ public class AccountService {
     }
 
     /**
-     * Re-send a verification email for the signed-in unverified account. Returns the
-     * dispatch to send, or empty when already verified, throttled, or mail is off.
-     * Caller is authenticated (no enumeration risk).
+     * Re-send a verification email for the signed-in unverified account. Publishes a
+     * fresh {@link AccountEmailRequested}, or does nothing when already verified or
+     * throttled. Caller is authenticated (no enumeration risk).
      */
     @Transactional
-    public Optional<MailDispatch> resendVerification(UUID accountId) {
+    public void resendVerification(UUID accountId) {
         Instant now = Instant.now();
         Account account = require(accountId);
         if (account.isVerified()) {
-            return Optional.empty();
+            return;
         }
         if (!emailSender.isConfigured()) {
             throw new ServiceUnavailableException("Email is temporarily unavailable");
         }
         if (throttled(accountId, TokenPurpose.EMAIL_VERIFICATION, now)) {
-            return Optional.empty();
+            return;
         }
-        return Optional.of(reissueVerification(accountId, account.getEmail(), now));
+        reissueVerification(accountId, account.getEmail(), now);
     }
 
     /**
      * Begin a password reset. Always enumeration-safe: an unknown or throttled email
-     * yields an empty dispatch (the controller still returns the uniform 204).
-     * Fail-closed 503 when mail is unconfigured (a global signal, not per-account).
+     * publishes nothing (the controller still returns the uniform 204); a known one
+     * publishes an {@link AccountEmailRequested}. Fail-closed 503 when mail is
+     * unconfigured (a global signal, not per-account).
      */
     @Transactional
-    public Optional<MailDispatch> requestPasswordReset(String email) {
+    public void requestPasswordReset(String email) {
         if (!emailSender.isConfigured()) {
             throw new ServiceUnavailableException("Password reset is temporarily unavailable");
         }
         Instant now = Instant.now();
         Account account = accounts.findByEmail(normalizeEmail(email)).orElse(null);
         if (account == null || throttled(account.getId(), TokenPurpose.PASSWORD_RESET, now)) {
-            return Optional.empty();
+            return;
         }
         tokens.invalidateOutstanding(account.getId(), TokenPurpose.PASSWORD_RESET, now);
         String raw = mintToken(account.getId(), TokenPurpose.PASSWORD_RESET,
                 Duration.ofMinutes(mail.getResetTtlMinutes()), now);
+        publishEmail(account.getEmail(), raw, TokenPurpose.PASSWORD_RESET);
         log.info("Password reset requested for account {}", account.getId());
-        return Optional.of(new MailDispatch(account.getEmail(), raw));
     }
 
     /**
@@ -236,12 +245,21 @@ public class AccountService {
 
     // --- internals ---------------------------------------------------------------
 
-    /** Invalidate prior verification tokens and mint a fresh one. */
-    private MailDispatch reissueVerification(UUID accountId, String email, Instant now) {
+    /** Invalidate prior verification tokens, mint a fresh one, and queue its email. */
+    private void reissueVerification(UUID accountId, String email, Instant now) {
         tokens.invalidateOutstanding(accountId, TokenPurpose.EMAIL_VERIFICATION, now);
         String raw = mintToken(accountId, TokenPurpose.EMAIL_VERIFICATION,
                 Duration.ofHours(mail.getVerificationTtlHours()), now);
-        return new MailDispatch(email, raw);
+        publishEmail(email, raw, TokenPurpose.EMAIL_VERIFICATION);
+    }
+
+    /**
+     * Queue an email to send after the transaction commits. Publishing (not sending)
+     * keeps SMTP out of the tx and off the request thread; the AFTER_COMMIT listener
+     * only fires if this transaction actually commits.
+     */
+    private void publishEmail(String email, String rawToken, TokenPurpose purpose) {
+        events.publishEvent(new AccountEmailRequested(email, rawToken, purpose));
     }
 
     /** Generate a raw token, store only its hash, return the raw value for the email link. */
@@ -280,9 +298,5 @@ public class AccountService {
 
     private static String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
-    }
-
-    /** An email to send out-of-band, after the transaction commits. */
-    public record MailDispatch(String email, String rawToken) {
     }
 }

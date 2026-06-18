@@ -1,19 +1,22 @@
 package io.github.thgrcarvalho.zelo.infrastructure.email;
 
+import io.github.thgrcarvalho.zelo.application.email.AccountEmailRequested;
 import io.github.thgrcarvalho.zelo.application.email.EmailMessage;
 import io.github.thgrcarvalho.zelo.application.email.EmailSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Builds and sends the account lifecycle emails — asynchronously, off the request
- * thread. Async is deliberate: it keeps SMTP latency out of the HTTP response (so
- * an unauthenticated caller can't time "did this email exist?" from how long the
- * response took), and it runs after the controller's transaction has committed, so
- * a verify link never points at a token row that rolled back. A delivery failure is
- * logged, not surfaced — the user always has a retry path (resend / reset-request).
+ * Sends the account lifecycle emails in response to an {@link AccountEmailRequested}
+ * event. Bound to {@code AFTER_COMMIT} so a verify/reset link never points at a token
+ * row that rolled back, and {@code @Async} so SMTP latency stays off the request
+ * thread (an unauthenticated caller can't time "did this email exist?" from the
+ * response). A delivery failure is logged, not surfaced — the user always has a retry
+ * path (resend / reset-request), and after commit there is nothing left to fail.
  */
 @Component
 public class AccountMailer {
@@ -29,7 +32,18 @@ public class AccountMailer {
     }
 
     @Async
-    public void sendVerification(String to, String rawToken) {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onAccountEmailRequested(AccountEmailRequested event) {
+        switch (event.purpose()) {
+            case EMAIL_VERIFICATION -> sendVerification(event.email(), event.rawToken());
+            case PASSWORD_RESET -> sendPasswordReset(event.email(), event.rawToken());
+            // Statement switch isn't exhaustiveness-checked: fail loud if a new purpose
+            // is added without a template here, rather than silently dropping its email.
+            default -> throw new IllegalStateException("No email template for purpose " + event.purpose());
+        }
+    }
+
+    private void sendVerification(String to, String rawToken) {
         send(to, "Verify your Zelo email",
                 "Welcome to Zelo.\n\n"
                         + "Confirm this email address to activate your account and start issuing API keys:\n\n"
@@ -37,8 +51,7 @@ public class AccountMailer {
                         + "This link expires soon. If you didn't sign up for Zelo, you can ignore this email.");
     }
 
-    @Async
-    public void sendPasswordReset(String to, String rawToken) {
+    private void sendPasswordReset(String to, String rawToken) {
         send(to, "Reset your Zelo password",
                 "We received a request to reset the password for your Zelo account.\n\n"
                         + "Choose a new password here:\n\n"
