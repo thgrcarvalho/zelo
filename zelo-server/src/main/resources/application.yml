@@ -17,6 +17,13 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  task:
+    scheduling:
+      # Two @Scheduled jobs share the scheduler — the 60s DSR overdue sweep and the
+      # hourly token purge. Give it >1 thread so a slow or stuck purge can never delay
+      # the sweep. Bump if more background jobs are added.
+      pool:
+        size: 2
   jackson:
     # The public API uses snake_case (external_id, purpose_key, legal_basis).
     property-naming-strategy: SNAKE_CASE
@@ -99,3 +106,7 @@ zelo:
     reset-ttl-minutes: ${ZELO_MAIL_RESET_TTL_MINUTES:30}
     resend-cooldown-seconds: ${ZELO_MAIL_RESEND_COOLDOWN_SECONDS:60}
     daily-emails-per-account: ${ZELO_MAIL_DAILY_EMAILS_PER_ACCOUNT:5}
+    # A spent token row is purged once expired AND older than this (floored at 24h
+    # so it can't drop a row still counted by the cooldown / daily cap).
+    token-retention-hours: ${ZELO_MAIL_TOKEN_RETENTION_HOURS:48}
+    token-purge-interval-ms: ${ZELO_MAIL_TOKEN_PURGE_INTERVAL_MS:3600000}

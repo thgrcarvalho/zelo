@@ -190,6 +190,23 @@ public class ZeloProperties {
         @Min(1)
         @Max(100)
         private int dailyEmailsPerAccount = 5;
+        /**
+         * How long a spent (expired) token row is retained before the purge job may
+         * delete it. The {@code @Min(24)} floor is load-bearing, not cosmetic: the
+         * abuse windows still count a token by {@code created_at}, so retention must
+         * stay ≥ both of them — the cooldown ({@code resend-cooldown-seconds}, max
+         * 86400s = 24h) and the daily cap (a hardcoded rolling 24h). At 24h the purge
+         * ({@code created_at < now - 24h}) and the windows ({@code created_at > now -
+         * 24h}) meet at a boundary they each exclude, so no counted row is ever
+         * dropped. Do not lower the floor below 24h without raising both windows. The
+         * default leaves a generous margin.
+         */
+        @Min(24)
+        @Max(8760)
+        private int tokenRetentionHours = 48;
+        /** How often the stale-token purge runs, in milliseconds (default 1h). */
+        @Min(60_000)
+        private long tokenPurgeIntervalMs = 3_600_000;
 
         public boolean isEnabled() {
             return enabled;
@@ -261,6 +278,22 @@ public class ZeloProperties {
 
         public void setDailyEmailsPerAccount(int dailyEmailsPerAccount) {
             this.dailyEmailsPerAccount = dailyEmailsPerAccount;
+        }
+
+        public int getTokenRetentionHours() {
+            return tokenRetentionHours;
+        }
+
+        public void setTokenRetentionHours(int tokenRetentionHours) {
+            this.tokenRetentionHours = tokenRetentionHours;
+        }
+
+        public long getTokenPurgeIntervalMs() {
+            return tokenPurgeIntervalMs;
+        }
+
+        public void setTokenPurgeIntervalMs(long tokenPurgeIntervalMs) {
+            this.tokenPurgeIntervalMs = tokenPurgeIntervalMs;
         }
     }
 }

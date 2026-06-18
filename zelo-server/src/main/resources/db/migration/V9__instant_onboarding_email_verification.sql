@@ -44,3 +44,8 @@ CREATE TABLE account_tokens (
 -- Lookups for the per-account cooldown / daily-cap (account_id + purpose). The
 -- redeem path looks up by token_hash, already covered by its UNIQUE index.
 CREATE INDEX idx_account_tokens_account_purpose ON account_tokens (account_id, purpose);
+
+-- The stale-row purge deletes WHERE expires_at <= now AND created_at < cutoff;
+-- expires_at leads so the planner range-seeks the (small) set of expired rows
+-- instead of scanning the whole append-only table as it grows.
+CREATE INDEX idx_account_tokens_expires_created ON account_tokens (expires_at, created_at);

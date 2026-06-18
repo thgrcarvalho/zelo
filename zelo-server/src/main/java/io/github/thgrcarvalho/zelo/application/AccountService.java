@@ -216,6 +216,24 @@ public class AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Account " + id + " not found"));
     }
 
+    /**
+     * Delete stale token rows so {@code account_tokens} can't grow unbounded (the
+     * issue path only ever inserts). Only rows that are both expired and older than
+     * the retention window are removed, so this never touches a live link or a row
+     * still inside the cooldown/daily-cap windows. Driven by the purge job; returns
+     * the number of rows deleted.
+     */
+    @Transactional
+    public int purgeStaleTokens() {
+        Instant now = Instant.now();
+        Instant windowCutoff = now.minus(Duration.ofHours(mail.getTokenRetentionHours()));
+        int deleted = tokens.deleteStale(now, windowCutoff);
+        if (deleted > 0) {
+            log.info("Purged {} stale account-token row(s)", deleted);
+        }
+        return deleted;
+    }
+
     // --- internals ---------------------------------------------------------------
 
     /** Invalidate prior verification tokens and mint a fresh one. */
