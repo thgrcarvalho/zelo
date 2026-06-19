@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zelo — Integration Guide</title>
+<meta name="description" content="Complete integration guide for Zelo: the open-source LGPD compliance control plane. Two ways to integrate — a language-agnostic REST API and a Spring Boot starter — for consent, deletion-request orchestration, and a tamper-evident audit trail. Zero end-user PII.">
+<link rel="canonical" href="https://zelocompliance.com/docs/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0B0A12">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Zelo — Integration Guide">
+<meta property="og:description" content="Two ways to integrate Zelo for LGPD compliance: a REST API and a Spring Boot starter. Consent, deletion orchestration, tamper-evident audit. Zero end-user PII.">
+<meta property="og:image" content="https://zelocompliance.com/assets/og.png">
+<meta property="og:url" content="https://zelocompliance.com/docs/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://zelocompliance.com/assets/og.png">
+<style>
+  @font-face{font-family:'Space Grotesk';font-weight:500;font-display:swap;src:url('/assets/fonts/space-grotesk-500.woff2') format('woff2')}
+  @font-face{font-family:'Space Grotesk';font-weight:600;font-display:swap;src:url('/assets/fonts/space-grotesk-600.woff2') format('woff2')}
+  @font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('/assets/fonts/space-grotesk-700.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans';font-weight:400;font-display:swap;src:url('/assets/fonts/ibm-plex-sans-400.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans';font-weight:500;font-display:swap;src:url('/assets/fonts/ibm-plex-sans-500.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans';font-weight:600;font-display:swap;src:url('/assets/fonts/ibm-plex-sans-600.woff2') format('woff2')}
+  @font-face{font-family:'JetBrains Mono';font-weight:400;font-display:swap;src:url('/assets/fonts/jetbrains-mono-400.woff2') format('woff2')}
+  @font-face{font-family:'JetBrains Mono';font-weight:500;font-display:swap;src:url('/assets/fonts/jetbrains-mono-500.woff2') format('woff2')}
+
+  :root {
+    --ink: #0B0A12; --panel: #14131F; --panel-2: #100F1A; --border: #2A2740; --border-soft: #201E30;
+    --text: #ECEAF6; --muted: #9A93B0; --faint: #8C85A1;
+    --green: #8B6CFF; --teal: #9D86FF; --blue: #4FD8E6; --amber: #F5B544; --red: #FB7185;
+    --maxw: 760px; --wide: 1080px;
+    --mono: 'JetBrains Mono', ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  }
+  h1,h2,h3,h4 { font-family: var(--display); letter-spacing: -0.02em; }
+  .wordmark { font-family: var(--display); }
+  .zmark { flex: none; display: block; }
+  .zmark .rail { stroke: currentColor; }
+  ::selection { background: rgba(139,108,255,.32); color: #fff; }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation: none !important; transition: none !important; } }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  a { color: var(--green); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 3px; }
+
+  .skip-link { position: absolute; left: -9999px; top: 0; background: var(--green); color: var(--ink); padding: 10px 16px; border-radius: 6px; font-weight: 600; z-index: 1000; }
+  .skip-link:focus { left: 12px; top: 12px; }
+
+  .wrap { width: 100%; max-width: var(--wide); margin: 0 auto; padding: 0 22px; }
+
+  /* ---------- Nav ---------- */
+  .nav { position: sticky; top: 0; z-index: 100; background: rgba(11, 15, 20, 0.82); backdrop-filter: saturate(140%) blur(10px); border-bottom: 1px solid var(--border-soft); }
+  .nav-inner { max-width: var(--wide); margin: 0 auto; padding: 12px 22px; display: flex; align-items: center; gap: 16px; }
+  .wordmark { font-weight: 700; font-size: 19px; letter-spacing: -0.02em; color: var(--text); display: inline-flex; align-items: center; gap: 9px; }
+  .wordmark:hover { text-decoration: none; }
+  .mark-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px rgba(16,185,129,0.7); flex: none; }
+  .nav-links { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .nav-links a { color: var(--muted); font-size: 14.5px; padding: 6px 10px; border-radius: 7px; }
+  .nav-links a:hover { color: var(--text); text-decoration: none; background: var(--panel); }
+  .star-badge { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px; color: var(--muted) !important; font-size: 14px; background: var(--panel); }
+  .star-badge:hover { background: var(--panel-2); }
+  .pill { background: var(--green) !important; color: var(--ink) !important; font-weight: 600; padding: 7px 14px !important; border-radius: 999px; }
+  .pill:hover { background: var(--teal) !important; text-decoration: none; }
+
+  /* ---------- Doc hero ---------- */
+  .doc-hero { padding: 50px 0 8px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.02em; border: 1px solid var(--border); background: var(--panel); padding: 5px 12px; border-radius: 999px; margin-bottom: 20px; }
+  .doc-hero h1 { font-size: clamp(32px, 5vw, 46px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 700; margin: 0 0 16px; }
+  .doc-hero .lead { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 720px; margin: 0; }
+  .doc-hero .lead code { color: var(--text); }
+
+  /* ---------- Layout ---------- */
+  .doc-main { padding: 26px 0 0; }
+  .doc-layout { display: grid; grid-template-columns: 1fr; gap: 30px; }
+  @media (min-width: 980px) { .doc-layout { grid-template-columns: 224px minmax(0, 1fr); gap: 50px; } }
+
+  .toc { font-size: 14px; }
+  @media (min-width: 980px) { .toc { position: sticky; top: 66px; align-self: start; max-height: calc(100vh - 86px); overflow: auto; padding-right: 6px; } }
+  .toc h4 { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 16px 0 8px; }
+  .toc h4:first-child { margin-top: 0; }
+  .toc ul { list-style: none; margin: 0; padding: 0; }
+  .toc a { display: block; color: var(--muted); padding: 5px 11px; border-radius: 7px; border-left: 2px solid transparent; }
+  .toc a:hover { color: var(--text); background: var(--panel); text-decoration: none; border-left-color: var(--border); }
+
+  .article { min-width: 0; }
+  .article h2 { font-size: clamp(23px, 3.4vw, 30px); letter-spacing: -0.02em; font-weight: 700; margin: 52px 0 8px; scroll-margin-top: 76px; }
+  .article > h2:first-child { margin-top: 6px; }
+  .article h3 { font-size: 19px; letter-spacing: -0.01em; margin: 34px 0 8px; scroll-margin-top: 76px; }
+  .article h4 { font-size: 14.5px; margin: 22px 0 6px; color: var(--text); font-family: var(--mono); font-weight: 600; }
+  .article p { color: var(--muted); }
+  .article p strong, .article li strong { color: var(--text); font-weight: 600; }
+  .article ul, .article ol { color: var(--muted); padding-left: 22px; margin: 12px 0; }
+  .article li { margin: 6px 0; }
+  .article a { color: var(--green); }
+  .lead-p { font-size: 18px; }
+  .sec-kicker { font-family: var(--mono); font-size: 12.5px; color: var(--green); letter-spacing: 0.05em; text-transform: uppercase; margin: 0 0 10px; }
+  .anchor { color: var(--muted); font-weight: 400; opacity: 0; margin-left: 8px; font-size: 0.7em; }
+  h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+
+  code, .inline-code { font-family: var(--mono); font-size: 0.88em; background: var(--panel); border: 1px solid var(--border-soft); border-radius: 5px; padding: 1px 6px; color: var(--text); }
+
+  /* ---------- Code blocks ---------- */
+  .code-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 16px 0; }
+  .code-head { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border-soft); background: var(--panel-2); }
+  .traffic { display: inline-flex; gap: 6px; }
+  .traffic i { width: 11px; height: 11px; border-radius: 50%; background: #2a3340; display: inline-block; }
+  .code-title { font-family: var(--mono); font-size: 12.5px; color: var(--muted); margin-left: 4px; }
+  pre { margin: 0; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--text); tab-size: 2; }
+  pre code { font-family: inherit; white-space: pre; background: none; border: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-key { color: var(--blue); }
+  .tok-str { color: #9DD4C5; }
+  .tok-green { color: var(--green); }
+  .tok-com { color: #788595; font-style: italic; }
+  .tok-amber { color: var(--amber); }
+  .tok-mut { color: var(--muted); }
+  .tok-kw { color: #C792EA; }
+
+  /* ---------- Endpoint blocks ---------- */
+  .ep { border: 1px solid var(--border); border-radius: 12px; background: var(--panel-2); margin: 18px 0; overflow: hidden; scroll-margin-top: 76px; }
+  .ep-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-soft); flex-wrap: wrap; }
+  .ep-body { padding: 6px 16px 16px; }
+  .ep-body > p:first-child { margin-top: 10px; }
+  .m { font-family: var(--mono); font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; padding: 4px 9px; border-radius: 6px; flex: none; }
+  .m-get { color: var(--blue); border: 1px solid rgba(59,130,246,0.45); background: rgba(59,130,246,0.08); }
+  .m-post { color: var(--green); border: 1px solid rgba(16,185,129,0.45); background: rgba(16,185,129,0.08); }
+  .m-patch { color: var(--amber); border: 1px solid rgba(245,158,11,0.45); background: rgba(245,158,11,0.08); }
+  .m-delete { color: var(--red); border: 1px solid rgba(239,68,68,0.45); background: rgba(239,68,68,0.08); }
+  .ep-path { font-family: var(--mono); font-size: 14.5px; color: var(--text); word-break: break-all; }
+  .ep-tag { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  /* ---------- Tables ---------- */
+  .tbl-wrap { overflow-x: auto; margin: 14px 0; }
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.tbl th, table.tbl td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  table.tbl th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.tbl td { color: var(--muted); }
+  table.tbl tr:last-child td { border-bottom: none; }
+  .req { color: var(--green); font-family: var(--mono); font-size: 11.5px; }
+  .opt { color: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+
+  /* ---------- Callouts ---------- */
+  .callout { border: 1px solid var(--border); border-left: 3px solid var(--teal); background: var(--panel); border-radius: 10px; padding: 13px 16px; margin: 18px 0; font-size: 15px; color: var(--muted); }
+  .callout.warn { border-left-color: var(--amber); }
+  .callout.danger { border-left-color: var(--red); }
+  .callout.ok { border-left-color: var(--green); }
+  .callout strong { color: var(--text); }
+  .callout .co-title { display: block; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+
+  /* ---------- Steps ---------- */
+  ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 16px 0; }
+  ol.steps > li { position: relative; padding-left: 42px; margin: 0 0 14px; color: var(--muted); }
+  ol.steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: -2px; width: 28px; height: 28px; border-radius: 50%; background: var(--panel); border: 1px solid var(--border); color: var(--green); font-family: var(--mono); font-weight: 700; font-size: 13px; display: grid; place-items: center; }
+
+  /* ---------- Enum tags ---------- */
+  .enum-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .enum-row .tag { font-family: var(--mono); font-size: 12px; padding: 3px 9px; border-radius: 6px; background: var(--panel); border: 1px solid var(--border); color: var(--text); }
+
+  /* ---------- Zero-PII diagram (reused from landing) ---------- */
+  .pii-diagram { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 0; margin: 22px 0 8px; }
+  @media (max-width: 620px) { .pii-diagram { grid-template-columns: 1fr; gap: 14px; } .pii-arrow { transform: rotate(90deg); padding: 6px 0; } }
+  .pii-box { border: 1px solid var(--border); background: var(--panel); border-radius: 12px; padding: 18px; }
+  .pii-box.zelo { border-color: rgba(16,185,129,0.45); }
+  .pii-box .lbl { font-family: var(--mono); font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .pii-box .big { font-weight: 600; margin: 6px 0 8px; color: var(--text); }
+  .pii-box .tagrow { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-family: var(--mono); font-size: 11.5px; padding: 3px 8px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); }
+  .tag.danger { color: var(--amber); border-color: rgba(245,158,11,0.4); }
+  .tag.ok { color: var(--green); border-color: rgba(16,185,129,0.4); }
+  .pii-arrow { display: grid; place-items: center; padding: 0 14px; color: var(--muted); font-family: var(--mono); font-size: 11px; text-align: center; }
+  .pii-arrow .line { display: block; color: var(--green); font-size: 22px; line-height: 1; }
+
+  /* ---------- CTA + footer ---------- */
+  .cta-section { padding: 60px 0; border-top: 1px solid var(--border-soft); margin-top: 64px; }
+  .cta-section h2 { font-size: clamp(24px, 4vw, 32px); letter-spacing: -0.02em; margin: 0 0 12px; }
+  .cta-section .lede { color: var(--muted); margin: 0 0 24px; max-width: 600px; }
+  .btn { font-family: var(--sans); font-size: 16px; font-weight: 600; border: none; cursor: pointer; border-radius: 9px; padding: 13px 22px; background: var(--green); color: var(--ink); display: inline-block; transition: background 0.15s ease; }
+  .btn:hover { background: var(--teal); text-decoration: none; }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); margin-left: 8px; }
+  .btn-ghost:hover { background: var(--panel); }
+
+  footer { padding: 40px 0 60px; color: var(--muted); font-size: 14.5px; border-top: 1px solid var(--border-soft); }
+  footer .foot-grid { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--text); }
+  .foot-note { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border-soft); font-family: var(--mono); font-size: 13px; color: var(--green); }
+</style>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<nav class="nav" aria-label="Primary">
+  <div class="nav-inner">
+    <a class="wordmark" href="/"><svg class="zmark" width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg>Zelo</a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="#api-reference">API reference</a>
+      <a class="star-badge" href="https://github.com/thgrcarvalho/zelo" rel="noopener" aria-label="Zelo on GitHub"><span aria-hidden="true">★</span> GitHub</a>
+      <a class="pill" href="/#waitlist">Request access</a>
+    </div>
+  </div>
+</nav>
+
+<header class="doc-hero">
+  <div class="wrap">
+    <span class="eyebrow">Integration guide</span>
+    <h1>Integrate Zelo</h1>
+    <p class="lead">Wire consent, deletion-request orchestration, and a tamper-evident audit trail into your app — without sending Zelo a single byte of personal data. Two ways in: a language-agnostic <strong>REST API</strong>, or a drop-in <strong>Spring Boot starter</strong>.</p>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap">
+    <div class="doc-layout">
+
+      <!-- ============ TOC ============ -->
+      <aside class="toc" aria-label="Table of contents">
+        <h4>Start here</h4>
+        <ul>
+          <li><a href="#what-is-zelo">What Zelo is</a></li>
+          <li><a href="#zero-pii">The zero-PII contract</a></li>
+          <li><a href="#get-a-key">Get an API key</a></li>
+          <li><a href="#external-id">Choose an external_id</a></li>
+        </ul>
+        <h4>Quickstart</h4>
+        <ul>
+          <li><a href="#quickstart-spring">Spring Boot starter</a></li>
+          <li><a href="#quickstart-rest">REST (any language)</a></li>
+        </ul>
+        <h4>Concepts</h4>
+        <ul>
+          <li><a href="#concept-purposes">Purposes</a></li>
+          <li><a href="#concept-consent">Consent</a></li>
+          <li><a href="#concept-dsr">Deletion requests</a></li>
+          <li><a href="#webhooks">Deletion webhooks</a></li>
+          <li><a href="#audit">The audit chain</a></li>
+        </ul>
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="#auth">Auth &amp; errors</a></li>
+          <li><a href="#api-reference">API reference</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+      </aside>
+
+      <!-- ============ ARTICLE ============ -->
+      <article class="article">
+
+        <h2 id="what-is-zelo">What Zelo is <a class="anchor" href="#what-is-zelo" aria-hidden="true">#</a></h2>
+        <p class="lead-p">Zelo is an open-source <strong>LGPD compliance control plane</strong>: a REST API (and Spring Boot starter) that records consent decisions, orchestrates data-subject deletion requests, and keeps a tamper-evident, hash-chained audit trail of all of it.</p>
+        <p>The defining design choice: <strong>Zelo is a control plane, not a data store.</strong> It never holds your users' personal data. It stores only an opaque <code>external_id</code> (your own user id), the consent records, request state, and the audit chain. When a user must be erased, Zelo doesn't delete anything itself — it fires a <strong>signed webhook</strong> back to your app, and <em>you</em> erase the row in your own database. Zelo records the tamper-evident proof that it happened.</p>
+        <p>That makes integration small and the blast radius tiny: a leak of Zelo holds no names, emails, or CPFs.</p>
+
+        <h2 id="zero-pii">The zero-PII contract <a class="anchor" href="#zero-pii" aria-hidden="true">#</a></h2>
+        <p>This is the one hard rule. <strong>Never send personal data to Zelo.</strong> Send only an opaque identifier and PII-free metadata.</p>
+        <div class="pii-diagram">
+          <div class="pii-box">
+            <div class="lbl">Your database</div>
+            <div class="big">Holds the PII</div>
+            <div class="tagrow">
+              <span class="tag danger">name</span><span class="tag danger">email</span><span class="tag danger">CPF</span><span class="tag danger">date of birth</span><span class="tag danger">health data</span>
+            </div>
+          </div>
+          <div class="pii-arrow"><span class="line">&rarr;</span>external_id only</div>
+          <div class="pii-box zelo">
+            <div class="lbl">Zelo control plane</div>
+            <div class="big">Holds zero PII</div>
+            <div class="tagrow">
+              <span class="tag ok">external_id</span><span class="tag ok">consent state</span><span class="tag ok">request state</span><span class="tag ok">audit chain</span>
+            </div>
+          </div>
+        </div>
+        <div class="callout danger">
+          <span class="co-title">Never put PII in the <code>external_id</code> or metadata</span>
+          The <code>external_id</code> must be opaque and non-PII — never an email, CPF, or name. Any <code>source</code> / <code>metadata</code> you attach to consent must be PII-free (e.g. <code>"signup-form"</code>, <code>{"ip":"203.0.113.7"}</code>), because it is folded verbatim into the audit payload.
+        </div>
+
+        <h2 id="get-a-key">Get an API key <a class="anchor" href="#get-a-key" aria-hidden="true">#</a></h2>
+        <p>Every <code>/v1</code> call is authenticated by a per-tenant API key sent in the <code>Authorization</code> header. There are two ways to get one:</p>
+        <h4>Hosted (zelocompliance.com)</h4>
+        <p>Use the managed service at <code>https://api.zelocompliance.com</code> — nothing to run. Access is currently invite-based: <a href="/#waitlist">request access</a> and we provision a key scoped to your account. Your data stays yours; the hosted plane still holds zero PII.</p>
+        <h4>Self-host (open source, Apache-2.0)</h4>
+        <p>Run the stack yourself with Docker Compose (Postgres + the control plane). A bootstrap key is seeded from the <code>ZELO_BOOTSTRAP_API_KEY</code> environment variable, or an operator can mint per-tenant keys at runtime via the admin API. See the <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">repository</a>.</p>
+        <div class="callout">
+          A key looks like <code>zk_live_8f1d6c2e…</code>. Zelo stores only its SHA-256 hash — the raw value is shown to you exactly once, so store it in your secret manager. Treat it like a password.
+        </div>
+
+        <h2 id="external-id">Choose an <code>external_id</code> <a class="anchor" href="#external-id" aria-hidden="true">#</a></h2>
+        <p>Zelo keys everything off an opaque, stable <code>external_id</code> string. Pick an identifier that is:</p>
+        <ul>
+          <li><strong>Opaque &amp; non-PII</strong> — never an email, CPF, or name.</li>
+          <li><strong>Stable</strong> for the life of the user.</li>
+          <li><strong>Resolvable</strong> — your webhook handler must be able to map it back to the row to erase.</li>
+        </ul>
+        <p><strong>Recommended:</strong> add a dedicated <code>external_id UUID</code> column to your users table (non-enumerable, never reused). <strong>Quick start:</strong> a prefixed id like <code>"app-user-" + user.id</code> is fine to begin with — migrate to a UUID before you have meaningful volume. An auto-increment integer works but is enumerable, so prefer a UUID.</p>
+
+        <h2 id="quickstart-spring">Quickstart — Spring Boot <a class="anchor" href="#quickstart-spring" aria-hidden="true">#</a></h2>
+        <p>If you run Spring Boot, the starter auto-configures a <code>ZeloClient</code> and an HMAC-verified webhook receiver. (Java 21, Spring Boot 3.x.)</p>
+        <ol class="steps">
+          <li>
+            <strong>Add the dependency</strong> (you also supply Spring Web yourself):
+            <div class="code-card cb">
+              <div class="code-head"><span class="traffic"><i></i><i></i><i></i></span><span class="code-title">build.gradle</span></div>
+<pre><code><span class="tok-key">dependencies</span> {
+    implementation <span class="tok-str">'io.github.thgrcarvalho:zelo-spring-boot-starter:0.1.0'</span>
+    implementation <span class="tok-str">'org.springframework.boot:spring-boot-starter-web'</span> <span class="tok-com">// required by you</span>
+}</code></pre>
+            </div>
+          </li>
+          <li>
+            <strong>Configure it</strong> (<code>application.yml</code> or <code>application.properties</code>):
+            <div class="code-card cb">
+              <div class="code-head"><span class="traffic"><i></i><i></i><i></i></span><span class="code-title">application.yml</span></div>
+<pre><code><span class="tok-key">zelo</span>:
+  <span class="tok-key">api-url</span>: <span class="tok-str">https://api.zelocompliance.com</span>
+  <span class="tok-key">api-key</span>: <span class="tok-str">${ZELO_API_KEY}</span>          <span class="tok-com"># zk_live_...</span>
+  <span class="tok-key">webhook-secret</span>: <span class="tok-str">${ZELO_WEBHOOK_SECRET}</span>  <span class="tok-com"># enables inbound /zelo/webhooks</span>
+  <span class="tok-com"># webhook-path: /zelo/webhooks        # default</span>
+  <span class="tok-com"># webhook-tolerance-seconds: 300       # default (replay window)</span></code></pre>
+            </div>
+          </li>
+          <li>
+            <strong>Declare a purpose, record consent, and handle deletion</strong> — the returned <code>Map</code> becomes the fulfillment proof, sent back to Zelo automatically:
+            <div class="code-card cb">
+              <div class="code-head"><span class="traffic"><i></i><i></i><i></i></span><span class="code-title">PrivacyIntegration.java</span></div>
+<pre><code><span class="tok-kw">import</span> io.github.thgrcarvalho.zelo.starter.*;
+
+<span class="tok-amber">@Component</span>
+<span class="tok-kw">public class</span> <span class="tok-green">PrivacyIntegration</span> {
+
+    <span class="tok-kw">private final</span> ZeloClient zelo;
+    <span class="tok-kw">private final</span> UserRepository users; <span class="tok-com">// your own persistence</span>
+
+    <span class="tok-kw">public</span> <span class="tok-green">PrivacyIntegration</span>(ZeloClient zelo, UserRepository users) {
+        <span class="tok-kw">this</span>.zelo = zelo;
+        <span class="tok-kw">this</span>.users = users;
+    }
+
+    <span class="tok-com">// Declare the purpose once at boot (idempotent — safe every startup).</span>
+    <span class="tok-amber">@Bean</span>
+    ApplicationRunner declarePurposes() {
+        <span class="tok-kw">return</span> args -&gt; zelo.definePurpose(
+                <span class="tok-str">"marketing-emails"</span>,
+                <span class="tok-str">"Send marketing and product-update emails"</span>,
+                ZeloLegalBasis.CONSENT);
+    }
+
+    <span class="tok-com">// Record a consent decision when the user opts in.</span>
+    <span class="tok-kw">public void</span> onUserOptIn(String userId) {
+        zelo.grantConsent(userId, <span class="tok-str">"marketing-emails"</span>, <span class="tok-str">"signup-form"</span>);
+        <span class="tok-com">// later: if (zelo.isGranted(userId, "marketing-emails")) { ... }</span>
+    }
+
+    <span class="tok-com">// Handle the deletion webhook. HMAC + replay are verified by the</span>
+    <span class="tok-com">// starter before this runs. The returned Map is the proof of erasure.</span>
+    <span class="tok-amber">@ZeloWebhook</span>(<span class="tok-str">"dsr.delete.requested"</span>)   <span class="tok-com">// or just @ZeloWebhook (same default)</span>
+    <span class="tok-kw">public</span> Map&lt;String, Object&gt; erase(ZeloDeletionRequest request) {
+        <span class="tok-kw">int</span> rows = users.deleteByExternalId(request.externalId());
+        <span class="tok-kw">return</span> Map.of(<span class="tok-str">"deletedRows"</span>, rows, <span class="tok-str">"requestId"</span>, request.requestId());
+    }
+}</code></pre>
+            </div>
+          </li>
+        </ol>
+        <p>That's the whole loop. The <code>ZeloClient</code> carries its own snake_case JSON mapper, so your app's Jackson config is never touched. See the <a href="#api-reference">API reference</a> for every <code>ZeloClient</code> method's underlying endpoint.</p>
+
+        <h2 id="quickstart-rest">Quickstart — REST <a class="anchor" href="#quickstart-rest" aria-hidden="true">#</a></h2>
+        <p>Any language with an HTTP client works. The whole API is JSON in <strong>snake_case</strong>, authenticated by the <code>Authorization</code> header. Here is the full loop with <code>curl</code> against the hosted plane.</p>
+        <div class="code-card cb">
+          <div class="code-head"><span class="traffic"><i></i><i></i><i></i></span><span class="code-title">end-to-end with curl</span></div>
+<pre><code><span class="tok-com"># 1. Declare a purpose (idempotent on re-run)</span>
+curl -sS -X POST https://api.zelocompliance.com/v1/purposes \
+  -H <span class="tok-str">"Authorization: Bearer zk_live_..."</span> \
+  -H <span class="tok-str">"Content-Type: application/json"</span> \
+  -d <span class="tok-str">'{"key":"marketing_emails","description":"Product emails","legal_basis":"CONSENT"}'</span>
+
+<span class="tok-com"># 2. Record a consent decision (GRANT or WITHDRAW)</span>
+curl -sS -X POST https://api.zelocompliance.com/v1/consents \
+  -H <span class="tok-str">"Authorization: Bearer zk_live_..."</span> \
+  -H <span class="tok-str">"Content-Type: application/json"</span> \
+  -d <span class="tok-str">'{"external_id":"user-42","purpose_key":"marketing_emails","action":"GRANT","source":"signup-form"}'</span>
+
+<span class="tok-com"># 3. Check current consent for a subject</span>
+curl -sS <span class="tok-str">"https://api.zelocompliance.com/v1/consents?subject=user-42"</span> \
+  -H <span class="tok-str">"Authorization: Bearer zk_live_..."</span>
+
+<span class="tok-com"># 4. Open a deletion request (you'll receive a webhook, or poll the request)</span>
+curl -sS -X POST https://api.zelocompliance.com/v1/requests \
+  -H <span class="tok-str">"Authorization: Bearer zk_live_..."</span> \
+  -H <span class="tok-str">"Content-Type: application/json"</span> \
+  -d <span class="tok-str">'{"external_id":"user-42","type":"DELETE"}'</span>
+
+<span class="tok-com"># 5. After you erase the user, mark the request fulfilled with proof</span>
+curl -sS -X POST https://api.zelocompliance.com/v1/requests/{id}/fulfill \
+  -H <span class="tok-str">"Authorization: Bearer zk_live_..."</span> \
+  -H <span class="tok-str">"Content-Type: application/json"</span> \
+  -d <span class="tok-str">'{"proof":{"deleted_records":17,"system":"crm"}}'</span>
+
+<span class="tok-com"># 6. Verify the tamper-evident audit chain at any time</span>
+curl -sS https://api.zelocompliance.com/v1/audit/verify \
+  -H <span class="tok-str">"Authorization: Bearer zk_live_..."</span></code></pre>
+        </div>
+        <div class="callout">
+          <span class="co-title">Idempotency</span>
+          Retry any <code>POST</code> safely by sending a stable <code>Idempotency-Key</code> header — a repeat with the same key returns the original result instead of duplicating the effect.
+        </div>
+
+        <h2 id="concept-purposes">Concept — Purposes <a class="anchor" href="#concept-purposes" aria-hidden="true">#</a></h2>
+        <p>A <strong>purpose</strong> is a declared reason for processing personal data, tied to an LGPD legal basis (Art. 7). You declare purposes once (it's idempotent); consent is always recorded <em>against</em> a purpose by its <code>key</code>. Valid <code>legal_basis</code> values:</p>
+        <div class="enum-row">
+          <span class="tag">CONSENT</span><span class="tag">LEGAL_OBLIGATION</span><span class="tag">PUBLIC_POLICY</span><span class="tag">RESEARCH</span><span class="tag">CONTRACT</span><span class="tag">REGULAR_EXERCISE_OF_RIGHTS</span><span class="tag">VITAL_INTERESTS</span><span class="tag">HEALTH_PROTECTION</span><span class="tag">LEGITIMATE_INTEREST</span><span class="tag">CREDIT_PROTECTION</span>
+        </div>
+
+        <h2 id="concept-consent">Concept — Consent <a class="anchor" href="#concept-consent" aria-hidden="true">#</a></h2>
+        <p>Consent is an <strong>append-only ledger</strong> per subject + purpose. You record <code>GRANT</code> or <code>WITHDRAW</code> actions; Zelo computes the current state and keeps the full history. Recording consent (or any other operation) for a never-seen <code>external_id</code> registers the subject implicitly — no separate step needed. A read returns both <code>current[]</code> (the latest state per purpose) and <code>history[]</code> (every action, oldest first).</p>
+
+        <h2 id="concept-dsr">Concept — Deletion requests <a class="anchor" href="#concept-dsr" aria-hidden="true">#</a></h2>
+        <p>A data-subject request (DSR) tracks an erasure through its lifecycle. v1 supports <strong>DELETE</strong>. Each request carries an LGPD response <code>deadline_at</code> and moves through these statuses:</p>
+        <div class="enum-row">
+          <span class="tag ok">RECEIVED</span><span class="tag">DISPATCHED</span><span class="tag ok">FULFILLED</span><span class="tag danger">OVERDUE</span>
+        </div>
+        <ul>
+          <li><strong>RECEIVED</strong> — created; a signed webhook is queued.</li>
+          <li><strong>DISPATCHED</strong> — the deletion webhook was delivered to your app.</li>
+          <li><strong>FULFILLED</strong> — you confirmed erasure via <code>/fulfill</code> (with optional proof).</li>
+          <li><strong>OVERDUE</strong> — the deadline passed before fulfillment.</li>
+        </ul>
+
+        <h2 id="webhooks">Deletion webhooks <a class="anchor" href="#webhooks" aria-hidden="true">#</a></h2>
+        <p>When a deletion request is opened, Zelo delivers a <strong>signed</strong> <code>dsr.delete.requested</code> webhook to your app. The payload is PII-free — it carries the <code>requestId</code>, the <code>externalId</code> to erase, and a <code>deadline</code>.</p>
+        <h4>Security model</h4>
+        <ul>
+          <li><strong>Signature</strong> — HMAC-SHA256 over the <em>raw</em> request body, in the <code>X-Zelo-Signature</code> header, keyed by your <code>webhook-secret</code>. Verify it before trusting the body.</li>
+          <li><strong>Replay defence</strong> — the signed body carries a <code>sentAt</code>; reject anything outside your tolerance window (default 300s). Zelo re-sends with a fresh stamp, so transient clock skew self-heals.</li>
+          <li><strong>Event type from the signed body</strong> — routing reads the <code>event</code> field inside the signed payload, never an unsigned header.</li>
+        </ul>
+        <h4>With the Spring starter</h4>
+        <p>All of the above is handled for you. Annotate a method with <code>@ZeloWebhook("dsr.delete.requested")</code> (see the <a href="#quickstart-spring">Spring quickstart</a>). The method receives a verified <code>ZeloDeletionRequest</code>; its return value is posted back as fulfillment proof automatically. If your handler throws, the receiver returns 5xx and Zelo retries — and because fulfillment is idempotent, a retry after a successful erase is safe.</p>
+        <h4>Handling it yourself (any language)</h4>
+        <ol class="steps">
+          <li>Read the <strong>raw</strong> request body and the <code>X-Zelo-Signature</code> header.</li>
+          <li>Compute <code>HMAC_SHA256(raw_body, webhook_secret)</code> and constant-time compare it to the header. Reject on mismatch.</li>
+          <li>Parse the body; reject if <code>sentAt</code> is outside your tolerance window.</li>
+          <li>Erase the user identified by <code>externalId</code> in your database.</li>
+          <li>Call <code>POST /v1/requests/{requestId}/fulfill</code> with your proof. Respond <code>200</code>.</li>
+        </ol>
+        <div class="callout ok">
+          <span class="co-title">You can also drive it without inbound webhooks</span>
+          Don't want to expose an endpoint? Open the request, then <strong>poll</strong> <code>GET /v1/requests/{id}</code>, erase, and call <code>/fulfill</code> yourself. The webhook is a convenience, not a requirement.
+        </div>
+
+        <h2 id="audit">The audit chain <a class="anchor" href="#audit" aria-hidden="true">#</a></h2>
+        <p>Every consent decision and request transition is appended to a <strong>hash-chained</strong>, per-tenant audit log: each entry's <code>entry_hash</code> covers the previous entry's hash, so any tampering with a past record breaks the chain from that point forward. <code>GET /v1/audit/verify</code> recomputes the chain end-to-end and tells you whether it's intact (and the first broken entry if not). Export entries with <code>GET /v1/audit</code> — keyset-paginated via <code>after_id</code>.</p>
+
+        <h2 id="auth">Authentication &amp; errors <a class="anchor" href="#auth" aria-hidden="true">#</a></h2>
+        <h4>Authorization header</h4>
+        <p>Send your key in the standard <code>Authorization</code> header. Both forms are accepted:</p>
+        <div class="code-card cb">
+<pre><code>Authorization: zk_live_8f1d6c2e...
+Authorization: Bearer zk_live_8f1d6c2e...   <span class="tok-com"># "Bearer " prefix optional</span></code></pre>
+        </div>
+        <p>Each key scopes every query to its own tenant — you only ever see your own subjects, purposes, requests, and audit chain. A revoked key is rejected exactly like an unknown one.</p>
+        <h4>Error body</h4>
+        <p>All errors share one shape:</p>
+        <div class="code-card cb">
+<pre><code>{
+  <span class="tok-key">"status"</span>: <span class="tok-amber">401</span>,
+  <span class="tok-key">"error"</span>: <span class="tok-str">"Unauthorized"</span>,
+  <span class="tok-key">"message"</span>: <span class="tok-str">"Invalid API key"</span>,
+  <span class="tok-key">"timestamp"</span>: <span class="tok-str">"2026-06-17T12:00:00.123456Z"</span>
+}</code></pre>
+        </div>
+        <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Status</th><th>When</th></tr></thead>
+          <tbody>
+            <tr><td><code>400</code></td><td>Validation failure, malformed JSON, missing required query param, or a bad ISO-8601 timestamp.</td></tr>
+            <tr><td><code>401</code></td><td>Missing, invalid, or revoked API key.</td></tr>
+            <tr><td><code>404</code></td><td>Referenced resource (request, subject, purpose) doesn't exist or isn't yours.</td></tr>
+            <tr><td><code>409</code></td><td>Conflict — e.g. an illegal DSR transition, or two writes racing the same record (retry).</td></tr>
+            <tr><td><code>500</code></td><td>Unexpected server error (details are logged server-side only).</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <h4>Rate limits &amp; idempotency</h4>
+        <p>Write endpoints are limited to <strong>100 requests/minute</strong> per (IP + path) and accept a stable <code>Idempotency-Key</code> header so retries don't double-apply. Reads are unthrottled.</p>
+
+        <h2 id="api-reference">API reference <a class="anchor" href="#api-reference" aria-hidden="true">#</a></h2>
+        <p>Base URL (hosted): <code>https://api.zelocompliance.com</code>. All bodies are JSON in snake_case.</p>
+
+        <h3 id="ref-purposes">Purposes</h3>
+        <div class="ep" id="post-purposes">
+          <div class="ep-head"><span class="m m-post">POST</span><span class="ep-path">/v1/purposes</span><span class="ep-tag">201 Created</span></div>
+          <div class="ep-body">
+            <p>Declare a processing purpose. Idempotent on the <code>key</code>.</p>
+            <div class="tbl-wrap"><table class="tbl">
+              <thead><tr><th>Field</th><th>Type</th><th></th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td><code>key</code></td><td>string</td><td><span class="req">required</span></td><td>stable identifier, referenced later as <code>purpose_key</code></td></tr>
+                <tr><td><code>description</code></td><td>string</td><td><span class="req">required</span></td><td>human description</td></tr>
+                <tr><td><code>legal_basis</code></td><td>enum</td><td><span class="req">required</span></td><td>one of the <a href="#concept-purposes">legal basis values</a></td></tr>
+              </tbody>
+            </table></div>
+            <p>Returns a <code>PurposeResponse</code>: <code>{ id, key, description, legal_basis, created_at }</code>.</p>
+          </div>
+        </div>
+        <div class="ep" id="get-purposes">
+          <div class="ep-head"><span class="m m-get">GET</span><span class="ep-path">/v1/purposes</span><span class="ep-tag">200 OK</span></div>
+          <div class="ep-body"><p>List every purpose declared for your key. Returns an array of <code>PurposeResponse</code>.</p></div>
+        </div>
+
+        <h3 id="ref-consents">Consents</h3>
+        <div class="ep" id="post-consents">
+          <div class="ep-head"><span class="m m-post">POST</span><span class="ep-path">/v1/consents</span><span class="ep-tag">200 OK</span></div>
+          <div class="ep-body">
+            <p>Record a consent action and get back the subject's full report.</p>
+            <div class="tbl-wrap"><table class="tbl">
+              <thead><tr><th>Field</th><th>Type</th><th></th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td><code>external_id</code></td><td>string</td><td><span class="req">required</span></td><td>your subject id (opaque, non-PII)</td></tr>
+                <tr><td><code>purpose_key</code></td><td>string</td><td><span class="req">required</span></td><td>key of a declared purpose</td></tr>
+                <tr><td><code>action</code></td><td>enum</td><td><span class="req">required</span></td><td><code>GRANT</code> or <code>WITHDRAW</code></td></tr>
+                <tr><td><code>source</code></td><td>string</td><td><span class="opt">optional</span></td><td>PII-free origin, e.g. <code>signup-form</code></td></tr>
+                <tr><td><code>metadata</code></td><td>object</td><td><span class="opt">optional</span></td><td>PII-free JSON, folded into the audit payload</td></tr>
+              </tbody>
+            </table></div>
+            <p>Returns a <code>ConsentReportResponse</code> with <code>current[]</code> and <code>history[]</code>.</p>
+          </div>
+        </div>
+        <div class="ep" id="get-consents">
+          <div class="ep-head"><span class="m m-get">GET</span><span class="ep-path">/v1/consents?subject={external_id}</span><span class="ep-tag">200 OK</span></div>
+          <div class="ep-body"><p>Get a subject's consent report. Required query param <code>subject</code> (the <code>external_id</code>); optional <code>purpose</code> narrows it to one purpose key.</p></div>
+        </div>
+
+        <h3 id="ref-requests">Deletion requests</h3>
+        <div class="ep" id="post-requests">
+          <div class="ep-head"><span class="m m-post">POST</span><span class="ep-path">/v1/requests</span><span class="ep-tag">201 Created</span></div>
+          <div class="ep-body">
+            <p>Open a deletion request. Body: <code>external_id</code> <span class="req">required</span>; <code>type</code> optional (only <code>DELETE</code> is meaningful in v1). Returns a <code>RequestResponse</code> with <code>status: "RECEIVED"</code>, a <code>deadline_at</code>, and <code>seconds_until_deadline</code>.</p>
+          </div>
+        </div>
+        <div class="ep" id="get-request">
+          <div class="ep-head"><span class="m m-get">GET</span><span class="ep-path">/v1/requests/{id}</span><span class="ep-tag">200 OK</span></div>
+          <div class="ep-body"><p>Fetch one request's current state. Unknown / not-yours id &rarr; <code>404</code>.</p></div>
+        </div>
+        <div class="ep" id="post-fulfill">
+          <div class="ep-head"><span class="m m-post">POST</span><span class="ep-path">/v1/requests/{id}/fulfill</span><span class="ep-tag">200 OK</span></div>
+          <div class="ep-body">
+            <p>Mark a request fulfilled after you've erased the user. Body is optional: <code>{ "proof": { ... } }</code> — arbitrary JSON evidence, echoed back as <code>fulfillment_proof</code>. Fulfilling an already-fulfilled request &rarr; <code>409</code>.</p>
+          </div>
+        </div>
+
+        <h3 id="ref-subjects">Subjects</h3>
+        <div class="ep" id="post-subjects">
+          <div class="ep-head"><span class="m m-post">POST</span><span class="ep-path">/v1/subjects</span><span class="ep-tag">200 OK</span></div>
+          <div class="ep-body"><p>Upsert a subject by <code>external_id</code> <span class="req">required</span>. Optional — consent and request calls register the subject implicitly. Returns <code>{ id, external_id, created_at }</code>.</p></div>
+        </div>
+
+        <h3 id="ref-audit">Audit</h3>
+        <div class="ep" id="get-audit">
+          <div class="ep-head"><span class="m m-get">GET</span><span class="ep-path">/v1/audit</span><span class="ep-tag">200 OK</span></div>
+          <div class="ep-body">
+            <p>Export audit entries, oldest first. Query params: <code>from</code> / <code>to</code> (ISO-8601 bounds), <code>after_id</code> (keyset cursor — pass the last <code>id</code> you saw), <code>limit</code> (default 200, clamped 1–1000). Each entry: <code>{ id, event_type, payload, occurred_at, prev_hash, entry_hash }</code>.</p>
+          </div>
+        </div>
+        <div class="ep" id="get-audit-verify">
+          <div class="ep-head"><span class="m m-get">GET</span><span class="ep-path">/v1/audit/verify</span><span class="ep-tag">200 OK</span></div>
+          <div class="ep-body"><p>Recompute and verify the chain. Returns <code>{ ok, entries_checked, first_broken_entry_id, detail }</code>.</p></div>
+        </div>
+
+        <h3 id="ref-admin">Admin (operator-only)</h3>
+        <p>Provisioning lives under <code>/admin/api-keys</code> and is guarded by a separate <strong>master key</strong>, not a client key — it is for operators running a self-hosted (or the hosted) plane, not for app developers. On the hosted service it is not internet-exposed.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST</code></td><td><code>/admin/api-keys</code></td><td>mint a client key (raw value returned once)</td></tr>
+            <tr><td><code>GET</code></td><td><code>/admin/api-keys</code></td><td>list keys (never exposes hashes/secrets)</td></tr>
+            <tr><td><code>PATCH</code></td><td><code>/admin/api-keys/{id}/webhook</code></td><td>set a key's webhook URL + secret</td></tr>
+            <tr><td><code>DELETE</code></td><td><code>/admin/api-keys/{id}</code></td><td>soft-revoke a key</td></tr>
+          </tbody>
+        </table></div>
+
+        <h2 id="faq">FAQ <a class="anchor" href="#faq" aria-hidden="true">#</a></h2>
+        <h4>Does Zelo store any personal data?</h4>
+        <p>No. Only an opaque <code>external_id</code>, consent/request state, and the audit chain. PII never leaves your database.</p>
+        <h4>Do I have to use the Spring starter?</h4>
+        <p>No — the REST API is language-agnostic. The starter is a convenience for Spring Boot apps.</p>
+        <h4>What if my deletion handler fails?</h4>
+        <p>Don't call <code>/fulfill</code>. The request stays open and Zelo retries the webhook (or you retry on your next poll). Fulfillment is idempotent, so completing after a retry is safe.</p>
+        <h4>Can I self-host?</h4>
+        <p>Yes — Zelo is open source (Apache-2.0). Run it with Docker Compose; the hosted service at zelocompliance.com is the same control plane, managed for you.</p>
+
+      </article>
+    </div>
+  </div>
+</main>
+
+<section class="cta-section">
+  <div class="wrap">
+    <h2>Ready to integrate?</h2>
+    <p class="lede">Get a key for the hosted control plane, or self-host the open-source stack. Either way, ship LGPD consent + erasure with a tamper-evident trail — and zero PII in Zelo.</p>
+    <a class="btn" href="/#waitlist">Request access</a>
+    <a class="btn btn-ghost" href="https://github.com/thgrcarvalho/zelo" rel="noopener">View on GitHub</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <a class="wordmark" href="/" style="font-size:17px;"><svg class="zmark" width="21" height="21" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg>Zelo</a>
+      <span>Open source · Apache-2.0</span>
+      <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">github.com/thgrcarvalho/zelo</a>
+      <a href="/">Home</a>
+    </div>
+    <p class="foot-note">Zelo is a control plane that stores zero end-user PII.</p>
+  </div>
+</footer>
+</body>
+</html>
