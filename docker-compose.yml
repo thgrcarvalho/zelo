@@ -45,11 +45,20 @@ services:
       # onboard clients at runtime without a redeploy.
       ZELO_ADMIN_MASTER_KEY: ${ZELO_ADMIN_MASTER_KEY:-}
       # Self-service account dashboard (/account/**). ZELO_AUTH_SECRET signs
-      # session cookies; blank → /account disabled (fail-closed). The operator
-      # creds seed the first approver on startup. Set all three in prod (.env).
+      # session cookies; blank → /account disabled (fail-closed). Set in prod (.env).
       ZELO_AUTH_SECRET: ${ZELO_AUTH_SECRET:-}
-      ZELO_OPERATOR_EMAIL: ${ZELO_OPERATOR_EMAIL:-}
-      ZELO_OPERATOR_PASSWORD: ${ZELO_OPERATOR_PASSWORD:-}
+      # Transactional email for instant onboarding (verification + password reset).
+      # ZELO_MAIL_ENABLED=false → logging no-op sender; with require-verification on
+      # (default) signup then fails closed (503) rather than activate unverified.
+      # In prod set ENABLED=true, FROM, BASE_URL, and the Resend API key as SMTP pass.
+      ZELO_MAIL_ENABLED: ${ZELO_MAIL_ENABLED:-false}
+      ZELO_MAIL_FROM: ${ZELO_MAIL_FROM:-}
+      ZELO_MAIL_REPLY_TO: ${ZELO_MAIL_REPLY_TO:-}
+      ZELO_MAIL_BASE_URL: ${ZELO_MAIL_BASE_URL:-}
+      ZELO_SMTP_HOST: ${ZELO_SMTP_HOST:-smtp.resend.com}
+      ZELO_SMTP_PORT: ${ZELO_SMTP_PORT:-465}
+      ZELO_SMTP_USERNAME: ${ZELO_SMTP_USERNAME:-resend}
+      ZELO_SMTP_PASSWORD: ${ZELO_SMTP_PASSWORD:-}
       ZELO_OUTBOX_POLL_MS: "1000"
     ports:
       - "8080:8080"

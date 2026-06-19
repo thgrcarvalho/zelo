@@ -19,10 +19,13 @@ import java.io.IOException;
  * which is what enforces 401 when it is absent. (Authorization — ACTIVE/OPERATOR
  * checks — happens in the controller.)
  *
- * <p>The token carries only the account id; this filter loads the account to stamp
- * the principal with the account's <em>current</em> role and status, so changes
- * apply on the next request without re-login. A valid-signature token whose account
- * no longer exists resolves to no principal.</p>
+ * <p>The token carries the account id and a password watermark; this filter loads
+ * the account to stamp the principal with the account's <em>current</em> status (so
+ * verification applies on the next request without re-login) AND to reject the token
+ * if its watermark no longer matches the account's {@code passwordChangedAt} — a
+ * password reset advances that value, logging out every previously-issued session.
+ * A valid-signature token whose account no longer exists, or whose watermark is
+ * stale, resolves to no principal.</p>
  */
 public class SessionAuthFilter extends OncePerRequestFilter {
 
@@ -42,10 +45,16 @@ public class SessionAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String token = readCookie(request, SESSION_COOKIE);
         if (token != null) {
-            sessionTokens.verify(token).ifPresent(accountId ->
-                    accounts.findById(accountId).ifPresent(account ->
+            sessionTokens.verify(token).ifPresent(claims ->
+                    accounts.findById(claims.accountId()).ifPresent(account -> {
+                        // Mandatory: the token's watermark must equal the account's current
+                        // passwordChangedAt. A reset advances it, so old sessions stop matching
+                        // and never get a principal (stateless "log out everywhere").
+                        if (account.getPasswordChangedAt().toEpochMilli() == claims.passwordWatermarkMillis()) {
                             request.setAttribute(PRINCIPAL_ATTRIBUTE,
-                                    new AccountPrincipal(account.getId(), account.getRole(), account.getStatus()))));
+                                    new AccountPrincipal(account.getId(), account.getStatus()));
+                        }
+                    }));
         }
         chain.doFilter(request, response);
     }

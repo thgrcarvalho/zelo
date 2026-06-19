@@ -8,6 +8,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
+    // Transactional email (verification + password reset) over SMTP — the one
+    // official Spring starter; provider is a config swap (Resend by default).
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
     // Persistence: JPA for the mutable aggregates (api_keys, subjects, purposes,
     // dsr_requests); plain JDBC for the append-only consent ledger + audit log,
     // where explicit SQL enforces the append-only + hash-chain discipline.
@@ -28,5 +32,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.testcontainers:junit-jupiter:1.21.3'
     testImplementation 'org.testcontainers:postgresql:1.21.3'
+    // In-process SMTP for asserting verification/reset emails without real delivery.
+    testImplementation 'com.icegreen:greenmail-junit5:2.1.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

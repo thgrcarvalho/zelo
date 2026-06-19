@@ -1,13 +1,15 @@
 package io.github.thgrcarvalho.zelo.domain.account;
 
 /**
- * Lifecycle of an account. Signup creates it {@code PENDING}; an operator moves it
- * to {@code ACTIVE} (may then mint keys) or {@code REJECTED}. Only {@code ACTIVE}
- * accounts can issue or manage API keys. Stored as the enum name in a
- * {@code VARCHAR} column.
+ * Lifecycle of a self-service account. Signup creates it {@code UNVERIFIED}
+ * (logged-out — it cannot mint keys); clicking the emailed verification link moves
+ * it to {@code ACTIVE}, after which it self-issues and manages API keys. There is
+ * no operator/approval step — email verification is the only gate. Stored as the
+ * enum name in a {@code VARCHAR} column.
  */
 public enum AccountStatus {
-    PENDING,
-    ACTIVE,
-    REJECTED
+    /** Signed up but has not yet verified its email; inert (no key access). */
+    UNVERIFIED,
+    /** Email verified; may self-issue and manage API keys. */
+    ACTIVE
 }

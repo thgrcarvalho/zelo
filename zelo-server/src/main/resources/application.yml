@@ -17,12 +17,36 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  task:
+    scheduling:
+      # Two @Scheduled jobs share the scheduler — the 60s DSR overdue sweep and the
+      # hourly token purge. Give it >1 thread so a slow or stuck purge can never delay
+      # the sweep. Bump if more background jobs are added.
+      pool:
+        size: 2
   jackson:
     # The public API uses snake_case (external_id, purpose_key, legal_basis).
     property-naming-strategy: SNAKE_CASE
     serialization:
       write-dates-as-timestamps: false
     default-property-inclusion: non_null
+  mail:
+    # SMTP transport for verification + password-reset email. Defaults target
+    # Resend's relay; the only secret is the API key (spring.mail.password).
+    # Provider swap (e.g. Brevo) = override host/port/username, no code change.
+    host: ${ZELO_SMTP_HOST:smtp.resend.com}
+    port: ${ZELO_SMTP_PORT:465}
+    username: ${ZELO_SMTP_USERNAME:resend}
+    password: ${ZELO_SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          ssl:
+            enable: true
+          auth: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 server:
   port: ${ZELO_PORT:8080}
@@ -64,10 +88,25 @@ zelo:
     master-key: ${ZELO_ADMIN_MASTER_KEY:}
   auth:
     # Self-service account auth (/account/**). session-secret is the HMAC key for
-    # session cookies; blank disables dashboard logins (fail-closed). Setting
-    # operator-email + operator-password seeds the first operator on startup so it
-    # can work the approval queue. All blank by default; set them in prod.
+    # session cookies; blank disables dashboard logins (fail-closed). Onboarding is
+    # instant + email-verified (see zelo.mail) — there is no operator to seed.
     session-secret: ${ZELO_AUTH_SECRET:}
-    operator-email: ${ZELO_OPERATOR_EMAIL:}
-    operator-password: ${ZELO_OPERATOR_PASSWORD:}
     session-ttl-hours: ${ZELO_SESSION_TTL_HOURS:168}
+  mail:
+    # Verification + password-reset email. enabled=false uses a logging no-op
+    # sender; with require-verification=true that makes signup fail closed (503)
+    # rather than activate an unverified account. base-url builds the links in
+    # emails (never from the request Host). All blank/off by default; set in prod.
+    enabled: ${ZELO_MAIL_ENABLED:false}
+    from: ${ZELO_MAIL_FROM:}
+    reply-to: ${ZELO_MAIL_REPLY_TO:}
+    base-url: ${ZELO_MAIL_BASE_URL:}
+    require-verification: ${ZELO_MAIL_REQUIRE_VERIFICATION:true}
+    verification-ttl-hours: ${ZELO_MAIL_VERIFICATION_TTL_HOURS:24}
+    reset-ttl-minutes: ${ZELO_MAIL_RESET_TTL_MINUTES:30}
+    resend-cooldown-seconds: ${ZELO_MAIL_RESEND_COOLDOWN_SECONDS:60}
+    daily-emails-per-account: ${ZELO_MAIL_DAILY_EMAILS_PER_ACCOUNT:5}
+    # A spent token row is purged once expired AND older than this (floored at 24h
+    # so it can't drop a row still counted by the cooldown / daily cap).
+    token-retention-hours: ${ZELO_MAIL_TOKEN_RETENTION_HOURS:48}
+    token-purge-interval-ms: ${ZELO_MAIL_TOKEN_PURGE_INTERVAL_MS:3600000}

@@ -1,58 +1,80 @@
 # Deploy assets — self-service dashboard (`/app`) + account API proxy
 
-These are the **box-side** artifacts for the self-service account surface. They sit
-in the repo (versioned, reviewable) but are applied to the OCI host by hand, the same
-way the landing page and `/docs/` are. Nothing here is built by Gradle or CI; the only
-CI-gated change in this PR is the `docker-compose.yml` env wiring.
+These are the **box-side** artifacts for the instant, email-verified self-service
+account surface. They sit in the repo (versioned, reviewable) but are applied to the
+OCI host by hand, the same way the landing page and `/docs/` are. Nothing here is
+built by Gradle or CI; the only CI-gated change is the backend + `docker-compose.yml`
+env wiring.
 
 ```
 deploy/
 ├── app/index.html              # the dashboard, served at https://zelocompliance.com/app/
-└── nginx/account-proxy.conf    # the /account/** -> :8080 location block (landing vhost)
+└── nginx/account-proxy.conf    # the /account/** -> :8080 location blocks (landing vhost)
 ```
+
+Onboarding is **instant + email-verified**: a developer signs up, clicks the link in
+the verification email, and is immediately ACTIVE — there is no operator and no
+approval queue. The one new external dependency is a transactional email provider
+(Resend by default).
 
 ## Prerequisite: the backend must be live first
 
 The dashboard calls `/account/**`, which only exists once the **self-service accounts
-backend** (PR A) is merged and deployed to the box. Deploy in this order:
+backend** is merged and deployed. Deploy in this order:
 
-1. Merge + deploy PR A (the `V8` migration runs on rebuild; `/account/**` comes online).
+1. Merge + deploy the backend (the `V8` + `V9` migrations run on rebuild; `/account/**`
+   comes online).
 2. Then apply the steps below.
 
-Applying the `docker-compose.yml` env change before PR A is harmless — the running
-image simply ignores the new variables until PR A's code is present.
+Applying the `docker-compose.yml` env change before the backend is harmless — the
+running image simply ignores the new variables until the code is present.
 
-## Deploy steps (on the box)
+## 1. Set up the email provider (Resend)
 
-Assumes the repo is checked out at `~/zelo` and the landing vhost is
-`/etc/nginx/sites-available/zelo-landing` (serving `/var/www/zelocompliance`).
+Verification + password-reset email is sent over SMTP. Resend's free tier is ample
+for onboarding; any SMTP provider (e.g. Brevo) works by overriding `ZELO_SMTP_*`.
 
-**1. Secrets** — add to `~/zelo/.env`. `.env` is untracked and survives
-`git reset --hard` (so does `docker-compose.override.yml`); just never run
-`git clean -fdx`, which would delete both.
+1. Create a Resend account and **verify a sending domain**. Prefer a dedicated
+   subdomain (`send.zelocompliance.com`) so mail-stream reputation is isolated from
+   the apex and existing records are untouched.
+2. Resend shows ~3–4 DNS records (an SPF `TXT`, the DKIM keys, and a `DMARC` `TXT`,
+   e.g. `v=DMARC1; p=none; rua=...`). Add them on `zelocompliance.com` via the scoped
+   Cloudflare token on the box (`~/.config/zelo-cf-token`) and the CF REST API.
+3. Generate a Resend **API key** — this becomes `ZELO_SMTP_PASSWORD` below.
 
-`.env` does **not** run command substitution, so generate the secret in the shell
-and append the literal value — don't paste an `$(...)` placeholder:
+## 2. Secrets — add to `~/zelo/.env`
+
+`.env` is untracked and survives `git reset --hard` (so does
+`docker-compose.override.yml`); just never run `git clean -fdx`, which would delete
+both. `.env` does **not** run command substitution, so generate the session secret in
+the shell and append the literal value — don't paste an `$(...)` placeholder:
 
 ```sh
-printf 'ZELO_AUTH_SECRET=%s\n' "$(openssl rand -base64 48)" >> ~/zelo/.env
-printf 'ZELO_OPERATOR_EMAIL=%s\n' "you@example.com"          >> ~/zelo/.env
-printf 'ZELO_OPERATOR_PASSWORD=%s\n' "<a strong password, min 8 chars>" >> ~/zelo/.env
+printf 'ZELO_AUTH_SECRET=%s\n' "$(openssl rand -base64 48)"      >> ~/zelo/.env
+printf 'ZELO_MAIL_ENABLED=%s\n' "true"                          >> ~/zelo/.env
+printf 'ZELO_MAIL_FROM=%s\n' "no-reply@send.zelocompliance.com" >> ~/zelo/.env
+printf 'ZELO_MAIL_BASE_URL=%s\n' "https://zelocompliance.com"   >> ~/zelo/.env
+printf 'ZELO_SMTP_PASSWORD=%s\n' "<resend-api-key>"             >> ~/zelo/.env
 ```
 
-A blank `ZELO_AUTH_SECRET` leaves `/account` fail-closed (signup/login return 503),
-so this step is what turns the dashboard on. The operator account is seeded once, on
-startup; an operator password shorter than 8 characters is refused (no operator is
-seeded), matching the floor enforced on self-service signup.
+Fail-closed knobs:
+- A blank `ZELO_AUTH_SECRET` leaves `/account` off (signup/login 503).
+- `ZELO_MAIL_ENABLED` not `true` (or a blank `ZELO_MAIL_FROM`/`ZELO_MAIL_BASE_URL`)
+  with verification required (the default) makes **signup return 503** rather than
+  create an account nobody can verify. So this step is what turns onboarding on.
+- `ZELO_MAIL_BASE_URL` must be the canonical `https` host with no path — it builds the
+  verify/reset links (never taken from the request `Host`).
 
-**2. Rebuild the control plane** (picks up the new env + PR A's code/migration):
+`ZELO_SMTP_HOST`/`PORT`/`USERNAME` default to Resend; override only to swap provider.
+
+## 3. Rebuild the control plane (picks up the new env + migrations)
 
 ```sh
 cd ~/zelo && git fetch --depth 1 origin main && git reset --hard FETCH_HEAD
 docker compose up -d --build
 ```
 
-**3. Publish the dashboard** to the landing docroot:
+## 4. Publish the dashboard to the landing docroot
 
 ```sh
 sudo mkdir -p /var/www/zelocompliance/app
@@ -62,13 +84,15 @@ sudo chmod 644 /var/www/zelocompliance/app/index.html
 ```
 
 `/app/` resolves via the landing vhost's existing `try_files $uri $uri/` — no nginx
-change is needed *for the static page*.
+change is needed *for the static page*. The verify/reset email links are
+`/app/#verify=<token>` / `/app/#reset=<token>`; the token rides the URL **fragment**,
+which the browser never sends to the server (so it's never in nginx logs or `Referer`).
 
-**4. Wire the account API proxy** — from `deploy/nginx/account-proxy.conf`:
-add the one `limit_req_zone` line to the **http{} context** (e.g. a file under
-`/etc/nginx/conf.d/`), and paste the three `location` blocks into the **TLS server
-block** of the landing vhost (`server_name zelocompliance.com www.zelocompliance.com;`),
-then:
+## 5. Wire the account API proxy — from `deploy/nginx/account-proxy.conf`
+
+Add the one `limit_req_zone` line to the **http{} context** (e.g. a file under
+`/etc/nginx/conf.d/`), and paste the `location` blocks into the **TLS server block**
+of the landing vhost (`server_name zelocompliance.com www.zelocompliance.com;`), then:
 
 ```sh
 sudo nginx -t && sudo systemctl reload nginx
@@ -81,7 +105,9 @@ dashboard origin only (session-cookie auth, same origin as `/app`).
 `/account` must be used on a single host. The landing vhost serves both
 `zelocompliance.com` and `www.zelocompliance.com`; pick one canonical host (e.g.
 redirect `www` → apex) so a login on one host isn't invisible on the other. Don't add
-a `Domain` attribute to widen the cookie.
+a `Domain` attribute to widen the cookie. As defense-in-depth, a default/catch-all
+nginx `server` that rejects unmatched `Host` headers is recommended (the app already
+builds email links from the configured base URL, never the request `Host`).
 
 ## Verify
 
@@ -91,13 +117,15 @@ a `Domain` attribute to widen the cookie.
 curl -si https://zelocompliance.com/account/me | head -1        # HTTP/2 401
 # Dashboard loads:
 curl -sI https://zelocompliance.com/app/ | head -1              # HTTP/2 200
-# FUNCTIONAL check — operator login must return 200 + a Set-Cookie. A 503 here
-# means ZELO_AUTH_SECRET is blank; a 401 means wrong creds.
-curl -si -X POST https://zelocompliance.com/account/login \
+# FUNCTIONAL check — signup must return 202 (not 503). A 503 means mail/secret is
+# unconfigured; a 400 is a validation error.
+curl -si -X POST https://zelocompliance.com/account/signup \
   -H 'content-type: application/json' \
-  -d '{"email":"you@example.com","password":"<operator password>"}' \
-  | grep -Ei '^HTTP/|^set-cookie'                                # HTTP/2 200 + set-cookie: zelo_session=...
+  -d '{"email":"you@example.com","password":"a-strong-pass","org_name":"You"}' \
+  | head -1                                                      # HTTP/2 202
 ```
 
-Then onboard for real: sign up at `/app`, approve from the operator account, self-issue
-a key, and retire any handoff-minted key.
+Then a real end-to-end check: sign up with a real Gmail/Outlook address, confirm the
+verification email **lands in the inbox (not spam)** — GreenMail tests don't exercise
+real DKIM/SPF/DMARC or the 465 TLS handshake — click the link, and self-issue a key.
+Retire any handoff-minted key once the self-issued one is live.
