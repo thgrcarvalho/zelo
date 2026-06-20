@@ -243,15 +243,23 @@ public class ZeloClient {
      * the {@code dsr.delete.requested} webhook back to this app. Returns the freshly
      * created request (status {@code RECEIVED}, with its deadline) — use
      * {@link ZeloRequest#id()} to correlate the later webhook and fulfillment.
+     *
+     * <p>This is the LGPD erasure trigger, so it gets the same bounded retry as the other
+     * writes: a transient blip must not drop a deletion request on the floor. Replay is
+     * safe — {@code POST /v1/requests} is {@code @Idempotent} and a partial unique index
+     * keeps one open DELETE per subject — so the stable {@code Idempotency-Key} returns the
+     * original request rather than opening a duplicate.
      */
     public ZeloRequest requestDeletion(String externalId) {
-        return http.post()
+        String idempotencyKey = "dsr-" + UUID.randomUUID();
+        return retrying(() -> http.post()
                 .uri(apiUrl + "/v1/requests")
                 .header(HttpHeaders.AUTHORIZATION, apiKey)
+                .header("Idempotency-Key", idempotencyKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("external_id", externalId, "type", "DELETE"))
                 .retrieve()
-                .body(ZeloRequest.class);
+                .body(ZeloRequest.class));
     }
 
     /** The current state of a request — status, deadline countdown, fulfillment proof. */
