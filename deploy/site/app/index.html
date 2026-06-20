@@ -665,7 +665,7 @@
       var rows = keys.map(keyRow).join("");
       host.innerHTML =
         '<table class="tbl"><thead><tr>' +
-        "<th>Name</th><th>Tier</th><th>Webhook</th><th>Created</th><th>Status</th><th></th>" +
+        "<th>Name</th><th>Webhook</th><th>Created</th><th>Status</th><th></th>" +
         "</tr></thead><tbody>" + rows + "</tbody></table>" +
         '<div id="key-forms"></div>';
       keys.forEach(wireKeyRow);
@@ -686,7 +686,6 @@
       "</div>";
     return "<tr>" +
       '<td data-label="Name">' + esc(k.name) + "</td>" +
-      '<td data-label="Tier">' + (k.tier ? '<span class="badge">' + esc(k.tier) + "</span>" : '<span class="muted">—</span>') + "</td>" +
       '<td data-label="Webhook">' + webhook + "</td>" +
       '<td class="mono" data-label="Created">' + esc((k.created_at || "").slice(0, 10)) + "</td>" +
       '<td data-label="Status">' + status + "</td>" +

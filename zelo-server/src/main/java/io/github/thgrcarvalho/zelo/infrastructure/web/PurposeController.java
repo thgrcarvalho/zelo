@@ -8,6 +8,7 @@ import io.github.thgrcarvalho.zelo.domain.subject.Purpose;
 import io.github.thgrcarvalho.zelo.infrastructure.security.ApiKeyPrincipal;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,8 +48,8 @@ public class PurposeController {
     }
 
     public record CreatePurposeRequest(
-            @NotBlank String key,
-            @NotBlank String description,
+            @NotBlank @Size(max = 255) String key,
+            @NotBlank @Size(max = 1024) String description,
             @NotNull LegalBasis legalBasis) {
     }
 

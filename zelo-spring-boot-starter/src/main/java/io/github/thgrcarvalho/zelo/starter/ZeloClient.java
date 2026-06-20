@@ -13,10 +13,13 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Client for the Zelo control plane's {@code /v1} REST API. Covers the full LGPD
@@ -74,6 +77,36 @@ public class ZeloClient {
                 .build();
     }
 
+    private static final int MAX_ATTEMPTS = 3;
+
+    /**
+     * Run a write with bounded retry on <em>transient</em> failures — connect/read
+     * timeouts and 5xx — with a short linear backoff. A 4xx is deterministic and never
+     * retried. State-mutating callers pass a stable {@code Idempotency-Key} so a retried
+     * attempt is deduplicated server-side rather than double-applied.
+     */
+    private <T> T retrying(Supplier<T> call) {
+        RestClientException last = null;
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            try {
+                return call.get();
+            } catch (HttpClientErrorException clientError) {
+                throw clientError;   // 4xx — deterministic, don't retry
+            } catch (RestClientException transientError) {
+                last = transientError;   // 5xx or transport (connect/read timeout)
+                if (attempt < MAX_ATTEMPTS) {
+                    try {
+                        Thread.sleep(200L * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw transientError;
+                    }
+                }
+            }
+        }
+        throw last;
+    }
+
     // ---------------------------------------------------------------- subjects
 
     /**
@@ -82,13 +115,15 @@ public class ZeloClient {
      * request also registers the subject implicitly, so calling this is optional.
      */
     public ZeloSubject registerSubject(String externalId) {
-        return http.post()
+        String idempotencyKey = "subject-" + UUID.randomUUID();
+        return retrying(() -> http.post()
                 .uri(apiUrl + "/v1/subjects")
                 .header(HttpHeaders.AUTHORIZATION, apiKey)
+                .header("Idempotency-Key", idempotencyKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("external_id", externalId))
                 .retrieve()
-                .body(ZeloSubject.class);
+                .body(ZeloSubject.class));
     }
 
     // --------------------------------------------------------------- purposes
@@ -101,13 +136,15 @@ public class ZeloClient {
      */
     public ZeloPurpose definePurpose(String key, String description, ZeloLegalBasis legalBasis) {
         try {
-            return http.post()
+            String idempotencyKey = "purpose-" + UUID.randomUUID();
+            return retrying(() -> http.post()
                     .uri(apiUrl + "/v1/purposes")
                     .header(HttpHeaders.AUTHORIZATION, apiKey)
+                    .header("Idempotency-Key", idempotencyKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("key", key, "description", description, "legal_basis", legalBasis))
                     .retrieve()
-                    .body(ZeloPurpose.class);
+                    .body(ZeloPurpose.class));
         } catch (HttpClientErrorException.Conflict alreadyExists) {
             log.debug("Purpose '{}' already declared; returning the existing definition", key);
             return listPurposes().stream()
@@ -146,13 +183,15 @@ public class ZeloClient {
         if (metadata != null && !metadata.isEmpty()) {
             body.put("metadata", metadata);
         }
-        return http.post()
+        String idempotencyKey = "consent-" + UUID.randomUUID();
+        return retrying(() -> http.post()
                 .uri(apiUrl + "/v1/consents")
                 .header(HttpHeaders.AUTHORIZATION, apiKey)
+                .header("Idempotency-Key", idempotencyKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .body(ZeloConsentReport.class);
+                .body(ZeloConsentReport.class));
     }
 
     /** Grant consent for a purpose. Shorthand for {@link #recordConsent}. */
@@ -231,14 +270,14 @@ public class ZeloClient {
      */
     public void fulfill(String requestId, Object proof) {
         try {
-            http.post()
+            retrying(() -> http.post()
                     .uri(apiUrl + "/v1/requests/{id}/fulfill", requestId)
                     .header(HttpHeaders.AUTHORIZATION, apiKey)
                     .header("Idempotency-Key", "fulfill-" + requestId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("proof", proof == null ? Map.of() : proof))
                     .retrieve()
-                    .toBodilessEntity();
+                    .toBodilessEntity());
         } catch (HttpClientErrorException.Conflict e) {
             log.info("Zelo request {} was already fulfilled; treating as success", requestId);
         }

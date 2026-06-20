@@ -280,6 +280,29 @@ class AccountApiIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void deleteAccountErasesItButPreservesItsKeysAsEvidence() throws Exception {
+        Cookie session = activeAccount("delete-me@acme.test", "Acme");
+        mvc.perform(post("/account/api-keys").cookie(session).contentType(JSON).content("{\"name\":\"to-delete\"}"))
+                .andExpect(status().isCreated());
+
+        mvc.perform(delete("/account/me").cookie(session)).andExpect(status().isNoContent());
+
+        // The account row (email + password hash) is erased...
+        Integer remaining = jdbc.queryForObject(
+                "SELECT count(*) FROM accounts WHERE email = 'delete-me@acme.test'", Integer.class);
+        assertThat(remaining).isZero();
+        // ...login no longer works...
+        mvc.perform(post("/account/login").contentType(JSON)
+                        .content("{\"email\":\"delete-me@acme.test\",\"password\":\"user-pass-123\"}"))
+                .andExpect(status().isUnauthorized());
+        // ...but its API key survives as audit evidence: revoked + detached from the account.
+        Integer key = jdbc.queryForObject(
+                "SELECT count(*) FROM api_keys WHERE name = 'to-delete' AND revoked_at IS NOT NULL AND account_id IS NULL",
+                Integer.class);
+        assertThat(key).isEqualTo(1);
+    }
+
+    @Test
     void resendVerificationRequiresASessionAndIsThrottledThenInvalidatesThePriorLink() throws Exception {
         mvc.perform(post("/account/verify-email/resend")).andExpect(status().isUnauthorized());
 

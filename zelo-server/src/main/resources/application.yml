@@ -77,6 +77,13 @@ management:
       # SMTP auth round-trip on every health poll.
       enabled: false
 
+springdoc:
+  # Publish only the public /v1 integrator API; keep the internal /account + /admin
+  # surfaces out of the developer-facing doc.
+  paths-to-match: /v1/**
+  swagger-ui:
+    path: /swagger-ui.html
+
 zelo:
   dsr:
     # Deadline window for fulfilling a data-subject request, in days. LGPD does

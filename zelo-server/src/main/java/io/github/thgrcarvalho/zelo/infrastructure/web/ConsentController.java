@@ -8,6 +8,7 @@ import io.github.thgrcarvalho.zelo.domain.consent.ConsentAction;
 import io.github.thgrcarvalho.zelo.infrastructure.security.ApiKeyPrincipal;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,10 +50,10 @@ public class ConsentController {
     }
 
     public record RecordConsentRequest(
-            @NotBlank String externalId,
-            @NotBlank String purposeKey,
+            @NotBlank @Size(max = 255) String externalId,
+            @NotBlank @Size(max = 255) String purposeKey,
             @NotNull ConsentAction action,
-            String source,
+            @Size(max = 255) String source,
             Map<String, Object> metadata) {
     }
 

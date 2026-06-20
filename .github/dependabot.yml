@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # Gradle dependencies across the multi-module build (the root build resolves all).
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Batch Spring Boot bumps together so they're reviewed/tested as a set.
+      spring-boot:
+        patterns:
+          - "org.springframework.boot*"
+          - "io.spring.dependency-management*"
+    labels:
+      - dependencies
+
+  # Keep the CI actions (checkout, setup-java, setup-gradle) patched.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
