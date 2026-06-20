@@ -111,6 +111,23 @@ verify/reset email links are
 `/app/#verify=<token>` / `/app/#reset=<token>`; the token rides the URL **fragment**,
 which the browser never sends to the server (so it's never in nginx logs or `Referer`).
 
+The landing's **live proof widget** fetches `GET /v1/audit/verify/demo` on the API host
+— a **public, unauthenticated** endpoint that recomputes a synthetic *showcase* audit
+chain from genesis and returns `{"ok":true,"entries_checked":N}`. It is the single
+anonymous exception under `/v1/*` (every other path stays API-key-guarded), exposes
+only the integrity verdict + count (never any payload or tenant data), and is
+**CORS-allowed for `https://zelocompliance.com` in the app itself** — so no nginx change
+is *required* for it to work. Toggle with `ZELO_SHOWCASE_ENABLED` (default `true`).
+
+The app applies a per-IP `@RateLimit` (60/min) as defense-in-depth, but it keys on
+`X-Forwarded-For`, which a client can spoof. For real DoS protection add a coarse
+`limit_req` on the **api vhost's** `/v1/audit/verify/demo` location keyed on the trusted
+`$binary_remote_addr` (the same shape as the `/account/*` auth limits below), and make
+that vhost derive the client IP from a trusted hop (`set_real_ip_from` +
+`real_ip_recursive`, or `proxy_set_header X-Forwarded-For $remote_addr`) rather than
+trusting the inbound header. The recompute is cheap (~8 hashes over the demo chain), so
+this is a low-severity hardening step, not a launch blocker.
+
 ## 5. Wire the account API proxy — from `deploy/nginx/account-proxy.conf`
 
 Add the one `limit_req_zone` line to the **http{} context** (e.g. a file under
@@ -140,6 +157,9 @@ builds email links from the configured base URL, never the request `Host`).
 curl -si https://zelocompliance.com/account/me | head -1        # HTTP/2 401
 # Dashboard loads:
 curl -sI https://zelocompliance.com/app/ | head -1              # HTTP/2 200
+# Landing proof widget — PUBLIC, no auth, CORS-allowed for the site; verifies the
+# synthetic showcase chain (no tenant data, verdict + count only):
+curl -s https://api.zelocompliance.com/v1/audit/verify/demo     # {"ok":true,"entries_checked":8,...}
 # FUNCTIONAL check — signup must return 202 (not 503). A 503 means mail/secret is
 # unconfigured; a 400 is a validation error.
 curl -si -X POST https://zelocompliance.com/account/signup \

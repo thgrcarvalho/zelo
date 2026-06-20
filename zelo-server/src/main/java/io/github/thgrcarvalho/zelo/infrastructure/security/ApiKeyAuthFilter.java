@@ -26,6 +26,8 @@ import java.util.Optional;
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     public static final String PRINCIPAL_ATTRIBUTE = "zelo.apiKeyPrincipal";
+    /** The single public exception under {@code /v1/*}: the landing page's demo proof widget. */
+    public static final String PUBLIC_DEMO_VERIFY_PATH = "/v1/audit/verify/demo";
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final ApiKeyRepository apiKeys;
@@ -34,6 +36,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     public ApiKeyAuthFilter(ApiKeyRepository apiKeys, ObjectMapper objectMapper) {
         this.apiKeys = apiKeys;
         this.objectMapper = objectMapper;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // Exact match only — every other /v1/** path stays authenticated.
+        return PUBLIC_DEMO_VERIFY_PATH.equals(request.getRequestURI());
     }
 
     @Override

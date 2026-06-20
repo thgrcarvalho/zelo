@@ -15,6 +15,7 @@ public class ZeloProperties {
     private final Admin admin = new Admin();
     private final Auth auth = new Auth();
     private final Mail mail = new Mail();
+    private final Showcase showcase = new Showcase();
 
     public Dsr getDsr() {
         return dsr;
@@ -34,6 +35,10 @@ public class ZeloProperties {
 
     public Mail getMail() {
         return mail;
+    }
+
+    public Showcase getShowcase() {
+        return showcase;
     }
 
     /** Data-subject-request settings. */
@@ -294,6 +299,23 @@ public class ZeloProperties {
 
         public void setTokenPurgeIntervalMs(long tokenPurgeIntervalMs) {
             this.tokenPurgeIntervalMs = tokenPurgeIntervalMs;
+        }
+    }
+
+    /**
+     * The public demo audit chain behind the landing page's live proof widget
+     * ({@code GET /v1/audit/verify/demo}). When {@code enabled=false} the synthetic
+     * chain is not seeded and the endpoint reports an empty (trivially valid) chain.
+     */
+    public static class Showcase {
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
         }
     }
 }

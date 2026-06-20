@@ -240,7 +240,7 @@
 
         <div class="proof-chip" id="proofChip" data-state="loading" role="status" aria-live="polite">
           <span class="proof-dot" aria-hidden="true"></span>
-          <span id="proofText">GET /v1/audit/verify — checking live chain…</span>
+          <span id="proofText">GET /v1/audit/verify/demo — checking live chain…</span>
         </div>
       </div>
 
@@ -589,7 +589,7 @@ GET https://api.zelocompliance.com/v1/audit/verify
   if (chip && proofText && typeof fetch === 'function') {
     var controller = ('AbortController' in window) ? new AbortController() : null;
     var timer = setTimeout(function () { if (controller) controller.abort(); }, 6000);
-    fetch('https://api.zelocompliance.com/v1/audit/verify', {
+    fetch('https://api.zelocompliance.com/v1/audit/verify/demo', {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
       signal: controller ? controller.signal : undefined
@@ -600,11 +600,11 @@ GET https://api.zelocompliance.com/v1/audit/verify
       })
       .then(function (data) {
         clearTimeout(timer);
-        if (data && data.ok === true) {
-          var n = (typeof data.entries_checked !== 'undefined') ? data.entries_checked
-                : (typeof data.entriesChecked !== 'undefined') ? data.entriesChecked : 'N';
+        var n = (data && typeof data.entries_checked !== 'undefined') ? data.entries_checked
+              : (data && typeof data.entriesChecked !== 'undefined') ? data.entriesChecked : 0;
+        if (data && data.ok === true && Number(n) > 0) {
           chip.setAttribute('data-state', 'ok');
-          proofText.innerHTML = 'audit/verify → <span class="tok-green">{"ok":true,"entries_checked":' + String(n).replace(/[<>&]/g, '') + '}</span>';
+          proofText.innerHTML = 'audit/verify/demo → <span class="tok-green">{"ok":true,"entries_checked":' + String(n).replace(/[<>&]/g, '') + '}</span>';
         } else {
           throw new Error('not ok');
         }
@@ -612,11 +612,11 @@ GET https://api.zelocompliance.com/v1/audit/verify
       .catch(function () {
         clearTimeout(timer);
         chip.setAttribute('data-state', 'err');
-        proofText.textContent = 'audit/verify — live chain (try it: GET /v1/audit/verify)';
+        proofText.textContent = 'audit/verify/demo — live showcase chain (try it: GET /v1/audit/verify/demo)';
       });
   } else if (chip && proofText) {
     chip.setAttribute('data-state', 'err');
-    proofText.textContent = 'audit/verify — GET /v1/audit/verify';
+    proofText.textContent = 'audit/verify/demo — GET /v1/audit/verify/demo';
   }
 
   /* ---------- Waitlist form ---------- */
