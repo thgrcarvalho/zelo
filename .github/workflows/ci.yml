@@ -26,3 +26,12 @@ jobs:
       # ubuntu-latest ships Docker, so the Testcontainers integration tests run here.
       - name: Integration tests
         run: ./gradlew test -DrunIntegrationTests=true
+
+      # The only test of the REAL wire contract between the server's webhook signing
+      # and the starter's validator: in-JVM tests stub both sides, so a CanonicalJson
+      # / stamp-order / HMAC-prefix change could pass everything above yet break a real
+      # integrator. Builds both jars and runs the full consent + DELETE loop for real.
+      - name: E2E loop (server <-> starter wire contract)
+        run: |
+          ./gradlew :zelo-server:bootJar :zelo-demo:bootJar
+          ./scripts/e2e-loop.sh

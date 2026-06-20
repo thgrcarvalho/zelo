@@ -1,0 +1,56 @@
+/* Shared styles for Zelo's legal pages (/legal/*). Matches the site's dark
+   "warm violet-black" identity — same tokens + self-hosted fonts as /docs/. */
+@font-face{font-family:'Space Grotesk';font-weight:600;font-display:swap;src:url('/assets/fonts/space-grotesk-600.woff2') format('woff2')}
+@font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('/assets/fonts/space-grotesk-700.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Sans';font-weight:400;font-display:swap;src:url('/assets/fonts/ibm-plex-sans-400.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Sans';font-weight:500;font-display:swap;src:url('/assets/fonts/ibm-plex-sans-500.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Sans';font-weight:600;font-display:swap;src:url('/assets/fonts/ibm-plex-sans-600.woff2') format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-weight:400;font-display:swap;src:url('/assets/fonts/jetbrains-mono-400.woff2') format('woff2')}
+
+:root{
+  --ink:#0B0A12; --panel:#14131F; --border:#2A2740; --border-soft:#201E30;
+  --text:#ECEAF6; --muted:#9A93B0; --faint:#8C85A1;
+  --violet:#8B6CFF; --cyan:#4FD8E6;
+  --maxw:760px; --wide:1080px;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --sans:'IBM Plex Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.72;-webkit-font-smoothing:antialiased}
+a{color:var(--cyan);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+
+header.top{border-bottom:1px solid var(--border-soft);padding:16px 0;position:sticky;top:0;background:rgba(11,10,18,.86);backdrop-filter:blur(8px);z-index:10}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:var(--wide)}
+.wordmark{display:flex;align-items:center;gap:9px;font-family:var(--display);font-weight:600;color:var(--text);font-size:18px}
+.wordmark svg{flex:none}
+.zmark .rail{stroke:#4a4566}
+header.top nav a{color:var(--muted);font-size:14px;margin-left:18px}
+
+main{padding:46px 0 8px}
+h1{font-family:var(--display);font-weight:700;letter-spacing:-.02em;font-size:33px;line-height:1.15;margin:0 0 8px}
+.lede{color:var(--muted);font-size:17px;margin:0 0 6px}
+.updated{color:var(--faint);font-size:13px;font-family:var(--mono);margin:0 0 30px}
+h2{font-family:var(--display);font-weight:600;letter-spacing:-.01em;font-size:21px;margin:36px 0 10px}
+h3{font-weight:600;font-size:16px;margin:22px 0 6px;color:var(--text)}
+p,li{color:var(--text)}
+ul,ol{padding-left:22px;margin:10px 0}
+li{margin:5px 0}
+strong{color:#fff;font-weight:600}
+code{font-family:var(--mono);font-size:.88em;background:var(--panel);border:1px solid var(--border-soft);border-radius:5px;padding:1px 5px}
+.note{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--violet);border-radius:10px;padding:14px 16px;margin:22px 0;color:var(--muted)}
+.note strong{color:var(--text)}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
+th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel);color:var(--text);font-family:var(--display);font-weight:600}
+.toc{background:var(--panel);border:1px solid var(--border-soft);border-radius:12px;padding:16px 20px;margin:26px 0}
+.toc a{color:var(--cyan)}
+
+footer{border-top:1px solid var(--border-soft);margin-top:52px;padding:26px 0;color:var(--muted);font-size:14px}
+footer .wrap{max-width:var(--wide);display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center}
+footer a{color:var(--muted)}
+.disclaimer{color:var(--faint);font-size:12.5px;margin:12px 0 0;max-width:var(--wide)}
+@media(max-width:600px){h1{font-size:26px}main{padding-top:34px}}

@@ -30,7 +30,9 @@ ZELO_COMPOSE_DIR=/home/ubuntu/zelo
 RETENTION_DAYS=14
 # BACKUP_PAR_BASE=https://objectstorage.<region>.oraclecloud.com/p/<token>/n/<ns>/b/zelo-backups/o/
 ENV
-sudo chmod 0600 /etc/zelo-backup.env
+# Owned by the user the service runs as (User= in zelo-backup.service), since the
+# script sources this file directly — root:0600 would make a non-root run fail to read it.
+sudo chown ubuntu:ubuntu /etc/zelo-backup.env && sudo chmod 0600 /etc/zelo-backup.env
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now zelo-backup.timer

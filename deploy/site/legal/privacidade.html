@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidade — Zelo</title>
+<meta name="description" content="Como o Zelo trata dados no serviço gerenciado; princípio de zero PII de titular.">
+<link rel="canonical" href="https://zelocompliance.com/legal/privacidade.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0B0A12">
+<link rel="stylesheet" href="/legal/legal.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="wordmark" href="/"><svg class="zmark" width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg> Zelo</a>
+    <nav><a href="/">Início</a><a href="/docs/">Docs</a></nav>
+  </div>
+</header>
+<main class="wrap">
+<h1>Política de Privacidade</h1>
+<p class="lede">Como o Zelo trata dados pessoais no serviço gerenciado — e por que não guardamos os dados pessoais dos seus usuários finais.</p>
+<p class="updated">Última atualização: 20 de junho de 2026</p>
+
+<div class="note"><strong>Princípio "zero PII de titular":</strong> o Zelo é um <strong>plano de controle de conformidade</strong> e <strong>não coleta nem armazena dados pessoais dos titulares</strong> (os usuários finais do seu aplicativo). Guardamos apenas um <code>external_id</code> opaco (definido pelo seu app), registros de consentimento, o estado das solicitações de titular (DSR) e a trilha de auditoria encadeada por hash. Os dados pessoais reais permanecem <strong>no seu banco de dados</strong>. Operações como exclusão são orquestradas via webhooks assinados (HMAC-SHA256).</div>
+
+<h2>1. Quem somos</h2>
+<p>O <strong>Zelo</strong> é um toolkit open-source de conformidade com a <strong>Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)</strong>, voltado a aplicações SaaS brasileiras. O núcleo é licenciado sob Apache-2.0 e pode ser auto-hospedado. Esta política aplica-se ao <strong>serviço gerenciado (hosted)</strong> disponível em <code>zelocompliance.com</code> (painel em <code>/app</code>) e <code>api.zelocompliance.com</code>.</p>
+<p>O serviço é mantido e operado por <strong>Thiago Rodrigues Carvalho</strong> (pessoa física, projeto independente). Contato e Encarregado pelo Tratamento de Dados Pessoais (DPO): <strong>privacidade@zelocompliance.com</strong>.</p>
+
+<h2>2. Os dois papéis do Zelo (LGPD)</h2>
+<p>É essencial distinguir os dois contextos de tratamento:</p>
+<table>
+<tr><th>Contexto</th><th>Papel do Zelo</th><th>Papel do integrador</th></tr>
+<tr><td>Dados da <strong>conta do desenvolvedor-integrador</strong> (e-mail, organização, hash de senha, logs)</td><td><strong>Controlador</strong></td><td>—</td></tr>
+<tr><td>Operações de conformidade sobre os <strong>titulares do integrador</strong> (consentimento, DSR, auditoria)</td><td><strong>Operador</strong></td><td><strong>Controlador</strong></td></tr>
+</table>
+<p>Esta política descreve principalmente o tratamento em que o Zelo atua como <strong>controlador</strong> (dados da conta do desenvolvedor). O tratamento em que o Zelo atua como operador é regido pelos Termos de Serviço e pelo contrato de tratamento entre o integrador (controlador) e o Zelo.</p>
+
+<h2>3. Dados que o Zelo NÃO coleta</h2>
+<p>O Zelo <strong>não recebe, não coleta e não armazena os dados pessoais dos titulares (usuários finais)</strong> do integrador — como nome, CPF, e-mail, endereço ou histórico do usuário final. Esses dados permanecem exclusivamente no banco de dados do integrador. Em relação a cada titular, o Zelo armazena apenas:</p>
+<ul>
+<li><strong><code>external_id</code> opaco</strong> — um identificador definido pelo aplicativo do integrador, sem significado para o Zelo e sem conteúdo pessoal direto;</li>
+<li><strong>Registros de consentimento</strong> — qual finalidade, quando, e o estado (concedido/revogado);</li>
+<li><strong>Estado de solicitações de titular (DSR)</strong> — o andamento de pedidos de acesso, exclusão etc., sem o conteúdo dos dados;</li>
+<li><strong>Trilha de auditoria encadeada por hash</strong> — registro tamper-evident dessas operações.</li>
+</ul>
+<p>As operações que tocam os dados reais (por exemplo, exclusão) são executadas <strong>pelo próprio integrador</strong>, acionado pelo Zelo por meio de <strong>webhooks assinados (HMAC-SHA256)</strong>.</p>
+
+<h2>4. Dados da conta do desenvolvedor que o Zelo coleta</h2>
+<p>Para o serviço gerenciado, o Zelo coleta e armazena os seguintes dados da conta do desenvolvedor-integrador:</p>
+<table>
+<tr><th>Dado</th><th>Finalidade</th><th>Base legal (LGPD Art. 7)</th></tr>
+<tr><td>E-mail e nome da organização</td><td>Criar e identificar a conta; comunicações de serviço; verificação por e-mail</td><td>Execução de contrato (inc. V)</td></tr>
+<tr><td>Hash da senha (PBKDF2-SHA256)</td><td>Autenticar o acesso ao painel</td><td>Execução de contrato (inc. V)</td></tr>
+<tr><td>Logs técnicos (endereço IP, carimbos de data/hora, ações na API/painel)</td><td>Segurança, prevenção a fraude e abuso, diagnóstico operacional</td><td>Legítimo interesse (inc. IX)</td></tr>
+<tr><td>E-mails transacionais (verificação, redefinição de senha)</td><td>Confirmar identidade e proteger a conta</td><td>Execução de contrato (inc. V)</td></tr>
+</table>
+<p>Quando, no futuro, houver tratamento que dependa de manifestação livre e informada (por exemplo, comunicações de marketing), ele será realizado apenas mediante <strong>consentimento</strong> (Art. 7, inc. I), que poderá ser revogado a qualquer momento.</p>
+
+<h2>5. Retenção</h2>
+<ul>
+<li><strong>Dados da conta:</strong> mantidos enquanto a conta estiver ativa. Após o encerramento, são eliminados ou anonimizados em prazo razoável, salvo obrigação legal de guarda.</li>
+<li><strong>Logs técnicos:</strong> retidos por período limitado, suficiente para fins de segurança e diagnóstico, e então eliminados.</li>
+<li><strong>Tokens de verificação/redefinição:</strong> expiram automaticamente e são purgados periodicamente.</li>
+<li><strong>Registros de consentimento, DSR e trilha de auditoria:</strong> mantidos pelo período necessário à comprovação de conformidade, conforme orientação do integrador (controlador).</li>
+</ul>
+
+<h2>6. Localização dos dados</h2>
+<p>Os dados da plataforma (conta, consentimentos, estado de solicitações e trilha de auditoria) são hospedados na <strong>Oracle Cloud Infrastructure (OCI)</strong>, região <strong>Brasil Sudeste (São Paulo, sa-saopaulo-1)</strong> — armazenados <strong>em território nacional</strong>. A única <strong>transferência internacional</strong> ocorre no envio de e-mail transacional (verificação de cadastro e redefinição de senha) pelo suboperador <strong>Resend</strong>, cujo processamento se dá fora do Brasil (Estados Unidos); essa transferência limita-se ao endereço de e-mail da conta e fundamenta-se na necessidade de execução do serviço por você solicitado (LGPD, Art. 33).</p>
+
+<h2>7. Suboperadores</h2>
+<p>O Zelo utiliza um conjunto mínimo de suboperadores, todos com finalidade restrita:</p>
+<ul>
+<li><strong>Oracle (OCI)</strong> — hospedagem da infraestrutura (São Paulo, Brasil);</li>
+<li><strong>Resend</strong> — envio de e-mail transacional (verificação de e-mail e redefinição de senha).</li>
+</ul>
+<p>Não compartilhamos dados com redes de publicidade, corretores de dados ou serviços de rastreamento de terceiros.</p>
+
+<h2>8. Segurança</h2>
+<p>Adotamos medidas técnicas e organizacionais compatíveis com o estágio do serviço (v1/beta), incluindo:</p>
+<ul>
+<li><strong>Senhas</strong> armazenadas apenas como hash com <code>PBKDF2-SHA256</code> — nunca em texto claro;</li>
+<li><strong>TLS</strong> em todo o tráfego entre cliente, painel e API;</li>
+<li><strong>Webhooks assinados</strong> com <code>HMAC-SHA256</code> para autenticar as operações orquestradas;</li>
+<li><strong>Trilha de auditoria encadeada por hash</strong> (tamper-evident), que permite detectar adulterações;</li>
+<li>Princípio de minimização: o Zelo simplesmente não guarda os dados pessoais dos titulares, reduzindo a superfície de risco.</li>
+</ul>
+
+<h2>9. Cookies e sessão</h2>
+<p>O painel utiliza um único <strong>cookie de sessão <code>HttpOnly</code></strong>, estritamente necessário para manter o desenvolvedor autenticado. <strong>Não usamos cookies de rastreamento, analytics de terceiros ou pixels publicitários.</strong> As fontes tipográficas são <strong>auto-hospedadas</strong>, de modo que o carregamento das páginas não gera chamadas a servidores de terceiros.</p>
+
+<h2>10. Direitos do titular (LGPD Art. 18)</h2>
+<p>Como controlador dos dados da conta do desenvolvedor, asseguramos a você, titular, os direitos previstos no Art. 18 da LGPD:</p>
+<ul>
+<li>confirmação da existência de tratamento;</li>
+<li>acesso aos dados;</li>
+<li>correção de dados incompletos, inexatos ou desatualizados;</li>
+<li>anonimização, bloqueio ou eliminação de dados desnecessários ou tratados em desconformidade;</li>
+<li>portabilidade, quando aplicável;</li>
+<li>eliminação dos dados tratados com base no consentimento;</li>
+<li>informação sobre o compartilhamento de dados;</li>
+<li>revogação do consentimento.</li>
+</ul>
+<p>Para exercer qualquer desses direitos, escreva para <strong>privacidade@zelocompliance.com</strong>. Responderemos no menor prazo razoável.</p>
+<div class="note">Se você é <strong>usuário final de um aplicativo que usa o Zelo</strong>, o controlador dos seus dados pessoais é o <strong>integrador (a empresa dona daquele aplicativo)</strong>, não o Zelo. Direcione sua solicitação a ele; o Zelo apenas orquestra a execução técnica em nome do integrador.</div>
+
+<h2>11. Encarregado (DPO)</h2>
+<p>O Encarregado pelo Tratamento de Dados Pessoais é <strong>Thiago Rodrigues Carvalho</strong>, que pode ser contatado em <strong>privacidade@zelocompliance.com</strong> para quaisquer dúvidas, solicitações ou comunicações relativas a esta política e ao tratamento de dados.</p>
+
+<h2>12. Alterações desta política</h2>
+<p>Esta política poderá ser atualizada para refletir mudanças no serviço, na infraestrutura ou na legislação. Alterações relevantes serão comunicadas por e-mail e/ou no painel, e a data de "Última atualização" no topo será revista. O uso continuado do serviço após a vigência das alterações implica concordância com a versão atualizada.</p>
+
+<h2>13. Lei aplicável e foro</h2>
+<p>Esta política é regida pelas leis da <strong>República Federativa do Brasil</strong>, em especial a LGPD. Fica eleito o foro brasileiro competente para dirimir eventuais controvérsias.</p>
+</main>
+<footer>
+  <div class="wrap">
+    <a class="wordmark" href="/" style="font-size:16px;"><svg class="zmark" width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg> Zelo</a>
+    <span>Open source · Apache-2.0</span>
+    <a href="/legal/termos.html">Termos</a>
+    <a href="/legal/privacidade.html">Privacidade</a>
+    <a href="/legal/dpa.html">Operador (DPA)</a>
+    <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">GitHub</a>
+  </div>
+  <p class="disclaimer wrap">Zelo está em versão v1 (beta); estes documentos podem ser atualizados. Dúvidas ou solicitações: <a href="mailto:privacidade@zelocompliance.com">privacidade@zelocompliance.com</a>.</p>
+</footer>
+</body>
+</html>
