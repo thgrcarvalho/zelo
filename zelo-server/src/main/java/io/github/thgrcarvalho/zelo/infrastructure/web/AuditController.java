@@ -1,10 +1,12 @@
 package io.github.thgrcarvalho.zelo.infrastructure.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.thgrcarvalho.ratelimit.RateLimit;
 import io.github.thgrcarvalho.zelo.application.AuditService;
 import io.github.thgrcarvalho.zelo.application.error.BadRequestException;
 import io.github.thgrcarvalho.zelo.domain.audit.AuditEntry;
 import io.github.thgrcarvalho.zelo.domain.audit.ChainVerification;
+import io.github.thgrcarvalho.zelo.infrastructure.bootstrap.ShowcaseChain;
 import io.github.thgrcarvalho.zelo.infrastructure.security.ApiKeyPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,6 +52,23 @@ public class AuditController {
     @GetMapping("/verify")
     public VerifyResponse verify(ApiKeyPrincipal principal) {
         ChainVerification result = auditService.verify(principal.id());
+        return new VerifyResponse(
+                result.ok(), result.entriesChecked(), result.firstBrokenEntryId(), result.detail());
+    }
+
+    /**
+     * Public, unauthenticated proof for the landing page's live widget: recompute a
+     * synthetic showcase chain and report its integrity. Exposes only the verdict +
+     * count (never any payload), so it leaks nothing. This path is the single
+     * anonymous exception under {@code /v1/*} (see {@code ApiKeyAuthFilter}), CORS-
+     * allowed for the site origin and rate-limited per IP. The authenticated
+     * {@link #verify} above stays the per-tenant endpoint integrators call with
+     * their own key.
+     */
+    @GetMapping("/verify/demo")
+    @RateLimit(requests = 60, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
+    public VerifyResponse verifyDemo() {
+        ChainVerification result = auditService.verify(ShowcaseChain.API_KEY_ID);
         return new VerifyResponse(
                 result.ok(), result.entriesChecked(), result.firstBrokenEntryId(), result.detail());
     }

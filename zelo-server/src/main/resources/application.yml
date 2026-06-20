@@ -81,6 +81,11 @@ zelo:
     name: ${ZELO_BOOTSTRAP_NAME:default}
     webhook-url: ${ZELO_BOOTSTRAP_WEBHOOK_URL:}
     webhook-secret: ${ZELO_BOOTSTRAP_WEBHOOK_SECRET:}
+  showcase:
+    # Seed + publicly serve a synthetic demo audit chain for the landing page's
+    # live proof widget (GET /v1/audit/verify/demo). Synthetic data only — no real
+    # personal data — and the endpoint exposes only the integrity verdict + count.
+    enabled: ${ZELO_SHOWCASE_ENABLED:true}
   admin:
     # Master key guarding the runtime key-provisioning API (/admin/**). Blank
     # disables the admin API entirely (fail-closed); set a strong value in prod
