@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zelo — Open-source LGPD compliance for Brazilian SaaS</title>
+<meta name="description" content="Open-source, developer-first LGPD toolkit for Brazilian SaaS. A REST API and Spring Boot starter with a consent ledger, deletion-request orchestration, and a tamper-evident hash-chained audit trail. Zero end-user PII. Apache-2.0.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0B0A12">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Zelo — Open-source LGPD compliance for Brazilian SaaS">
+<meta property="og:description" content="Open-source, developer-first LGPD toolkit: a consent ledger, deletion orchestration, and a tamper-evident hash-chained audit trail. Zero end-user PII. Apache-2.0.">
+<meta property="og:image" content="https://zelocompliance.com/assets/og.png">
+<meta property="og:url" content="https://zelocompliance.com/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Zelo — Prove LGPD compliance on every deadline">
+<meta name="twitter:description" content="A consent ledger, deletion orchestration, and a tamper-evident audit trail you can recompute and hand to a regulator. Zero end-user PII.">
+<meta name="twitter:image" content="https://zelocompliance.com/assets/og.png">
+<style>
+  /* ===== Zelo landing — "append-only" identity ===== */
+  @font-face{font-family:'Space Grotesk';font-weight:500;font-display:swap;src:url('/assets/fonts/space-grotesk-500.woff2') format('woff2')}
+  @font-face{font-family:'Space Grotesk';font-weight:600;font-display:swap;src:url('/assets/fonts/space-grotesk-600.woff2') format('woff2')}
+  @font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('/assets/fonts/space-grotesk-700.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans';font-weight:400;font-display:swap;src:url('/assets/fonts/ibm-plex-sans-400.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans';font-weight:500;font-display:swap;src:url('/assets/fonts/ibm-plex-sans-500.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans';font-weight:600;font-display:swap;src:url('/assets/fonts/ibm-plex-sans-600.woff2') format('woff2')}
+  @font-face{font-family:'JetBrains Mono';font-weight:400;font-display:swap;src:url('/assets/fonts/jetbrains-mono-400.woff2') format('woff2')}
+  @font-face{font-family:'JetBrains Mono';font-weight:500;font-display:swap;src:url('/assets/fonts/jetbrains-mono-500.woff2') format('woff2')}
+
+  :root{
+    --bg:#0B0A12; --bg-2:#08070E; --surface:#14131F; --surface-2:#100F1A; --elevated:#1B1930;
+    --border:#2A2740; --border-soft:#201E30;
+    --ink:#ECEAF6; --muted:#9A93B0; --faint:#8C85A1;
+    --violet:#8B6CFF; --violet-bright:#9D86FF; --violet-deep:#7857F5; --violet-tint:rgba(139,108,255,.13); --on-violet:#0B0814;
+    --cyan:#4FD8E6; --success:#34D399; --warn:#F5B544; --danger:#FB7185;
+    --font-display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+    --font-sans:'IBM Plex Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --maxw:760px; --wide:920px;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-size:18px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+  ::selection{background:rgba(139,108,255,.32);color:#fff}
+  a{color:var(--violet-bright);text-decoration:none}
+  a:hover{color:var(--cyan);text-decoration:none}
+  :focus-visible{outline:2px solid var(--violet);outline-offset:2px;border-radius:4px}
+  h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em}
+  strong{color:var(--ink);font-weight:600}
+
+  .skip-link{position:absolute;left:-9999px;top:0;background:var(--violet);color:var(--on-violet);padding:10px 16px;border-radius:6px;font-weight:600;z-index:1000}
+  .skip-link:focus{left:12px;top:12px}
+
+  .wrap{width:100%;max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  .wide{max-width:var(--wide)}
+  section{padding:60px 0}
+
+  /* logo */
+  .wordmark{display:inline-flex;align-items:center;gap:10px;color:var(--ink);font-family:var(--font-display);font-weight:700;font-size:20px;letter-spacing:-.03em;line-height:1}
+  .wordmark:hover{color:var(--ink);text-decoration:none}
+  .zmark{flex:none;display:block}
+  .zmark .rail{stroke:currentColor}
+
+  /* nav */
+  .nav{position:sticky;top:0;z-index:100;background:rgba(11,10,18,.78);backdrop-filter:saturate(150%) blur(12px);border-bottom:1px solid var(--border-soft)}
+  .nav-inner{max-width:var(--wide);margin:0 auto;padding:13px 22px;display:flex;align-items:center;gap:16px}
+  .nav-links{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .nav-links a{color:var(--muted);font-size:14.5px;padding:7px 11px;border-radius:8px;transition:.16s}
+  .nav-links a:hover{color:var(--ink);text-decoration:none;background:var(--elevated)}
+  .star-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:6px 11px;color:var(--muted)!important;font-size:14px;background:var(--surface)}
+  .star-badge:hover{background:var(--elevated);border-color:var(--violet)}
+  .pill{background:var(--violet)!important;color:var(--on-violet)!important;font-weight:600;padding:8px 15px!important;border-radius:var(--r-pill,999px)}
+  .pill:hover{background:var(--violet-bright)!important;text-decoration:none}
+
+  /* hero */
+  .hero{padding:72px 0 44px}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.02em;border:1px solid var(--border);background:var(--surface);padding:6px 13px;border-radius:999px;margin-bottom:24px}
+  .eyebrow .dot,.mark-dot{width:8px;height:8px;border-radius:50%;background:var(--violet);box-shadow:0 0 10px rgba(139,108,255,.85);flex:none}
+  h1{font-size:clamp(36px,6vw,58px);line-height:1.04;letter-spacing:-.035em;font-weight:700;margin:0 0 22px}
+  h1 .accent{color:var(--violet)}
+  .subhead{font-size:clamp(17px,2.4vw,20px);color:var(--muted);max-width:640px;margin:0 0 30px;font-family:var(--font-sans)}
+  .subhead code{color:var(--ink);font-family:var(--font-mono);font-size:.9em;background:var(--surface);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px}
+  .hero-grid{display:grid;gap:28px}
+
+  /* buttons + forms */
+  .btn{font-family:var(--font-sans);font-size:16px;font-weight:600;border:1px solid transparent;cursor:pointer;border-radius:11px;padding:13px 22px;background:var(--violet);color:var(--on-violet);transition:background .16s,transform .05s}
+  .btn:hover{background:var(--violet-bright)}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.7;cursor:progress}
+  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--border)}
+  .btn-ghost:hover{background:var(--elevated);border-color:var(--violet)}
+  .form-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px}
+  .form-card h2{margin:0 0 4px;font-size:18px;letter-spacing:-.01em}
+  .form-card p.helper{margin:0 0 16px;font-size:14.5px;color:var(--muted)}
+  .field-row{display:grid;gap:12px;margin-bottom:12px}
+  @media(min-width:520px){.field-row.two{grid-template-columns:1fr 1fr}}
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px;font-weight:500;font-family:var(--font-mono)}
+  input[type=email],input[type=text]{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;color:var(--ink);font-size:16px;font-family:var(--font-sans);padding:12px 14px;transition:.16s}
+  input::placeholder{color:#857E9C;opacity:1}
+  input:focus-visible{border-color:var(--violet);outline:none;box-shadow:0 0 0 3px rgba(139,108,255,.32)}
+  input[aria-invalid="true"]{border-color:var(--warn)}
+  .form-error{color:var(--warn);font-size:13.5px;margin:6px 0 0;min-height:1px}
+  .form-actions{margin-top:6px}
+  .form-actions .btn{width:100%}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(11,8,20,.35);border-top-color:var(--on-violet);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:8px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .form-success{display:flex;align-items:center;gap:12px;background:var(--violet-tint);border:1px solid rgba(139,108,255,.4);border-radius:12px;padding:18px;color:var(--ink);font-size:16px}
+  .check-circle{flex:none;width:30px;height:30px;border-radius:50%;background:var(--violet);color:var(--on-violet);display:grid;place-items:center;font-weight:800}
+
+  /* live proof chip */
+  .proof-chip{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--surface-2);border-radius:999px;padding:9px 15px;font-family:var(--font-mono);font-size:13.5px;color:var(--muted);margin-top:18px}
+  .proof-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+  .proof-chip[data-state="ok"] .proof-dot{background:var(--cyan);box-shadow:0 0 9px rgba(79,216,230,.85)}
+  .proof-chip[data-state="ok"]{border-color:rgba(79,216,230,.45)}
+  .proof-chip[data-state="err"] .proof-dot{background:var(--muted)}
+  .proof-chip[data-state="loading"] .proof-dot{animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+  .proof-chip .tok-green{color:var(--cyan)}
+
+  /* code / terminal */
+  .code-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .code-head{display:flex;align-items:center;gap:10px;padding:11px 15px;border-bottom:1px solid var(--border-soft);background:var(--surface-2)}
+  .traffic{display:inline-flex;gap:6px}.traffic i{width:11px;height:11px;border-radius:50%;background:#2f2c45;display:inline-block}
+  .code-title{font-family:var(--font-mono);font-size:12.5px;color:var(--muted);margin-left:4px}
+  .tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+  .tab{font-family:var(--font-mono);font-size:12.5px;color:var(--muted);background:transparent;border:1px solid transparent;padding:6px 11px;border-radius:8px;cursor:pointer}
+  .tab:hover{color:var(--ink)}
+  .tab[aria-selected="true"]{color:var(--ink);background:var(--surface);border-color:var(--border)}
+  pre{margin:0;padding:18px;overflow-x:auto;font-family:var(--font-mono);font-size:13.5px;line-height:1.7;color:var(--ink);tab-size:2}
+  pre code{font-family:inherit;white-space:pre}
+  .tabpanel[hidden]{display:none}
+  .tok-key{color:var(--cyan)}.tok-str{color:#A9E5C8}.tok-green{color:var(--violet-bright)}.tok-com{color:var(--faint);font-style:italic}.tok-amber{color:var(--warn)}.tok-mut{color:var(--muted)}
+
+  /* section type */
+  h2.sec-title{font-size:clamp(25px,4vw,33px);line-height:1.14;letter-spacing:-.02em;font-weight:700;margin:0 0 16px}
+  .sec-body{color:var(--muted);font-size:17.5px}
+  .sec-body strong{color:var(--ink);font-weight:600}
+  .sec-body code,.inline-code{font-family:var(--font-mono);font-size:.9em;background:var(--surface);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .sec-kicker{font-family:var(--font-mono);font-size:13px;color:var(--cyan);letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px}
+  .divider{border:none;border-top:1px solid var(--border-soft);margin:0}
+  .alt{background:var(--surface-2)}
+
+  /* zero-PII diagram */
+  .pii-diagram{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:0;margin-top:28px}
+  @media(max-width:620px){.pii-diagram{grid-template-columns:1fr;gap:14px}.pii-arrow{transform:rotate(90deg);padding:6px 0}}
+  .pii-box{border:1px solid var(--border);background:var(--surface);border-radius:13px;padding:18px}
+  .pii-box.zelo{border-color:rgba(139,108,255,.5);box-shadow:0 0 0 1px rgba(139,108,255,.12) inset}
+  .pii-box .lbl{font-family:var(--font-mono);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .pii-box .big{font-weight:600;margin:6px 0 8px;color:var(--ink);font-family:var(--font-display)}
+  .pii-box .tagrow{display:flex;flex-wrap:wrap;gap:6px}
+  .tag{font-family:var(--font-mono);font-size:11.5px;padding:3px 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted)}
+  .tag.danger{color:var(--muted);border-color:var(--border)}
+  .tag.ok{color:var(--cyan);border-color:rgba(79,216,230,.4)}
+  .pii-arrow{display:grid;place-items:center;padding:0 14px;color:var(--muted);font-family:var(--font-mono);font-size:12px;text-align:center}
+  .pii-arrow .line{display:block;color:var(--violet);font-size:22px;line-height:1}
+
+  /* chain diagram */
+  .chain{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:6px 2px 14px;margin-top:24px}
+  .block{flex:none;min-width:150px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:13px;font-family:var(--font-mono);font-size:11.5px}
+  .block.tampered{border-color:var(--warn);background:var(--warn-tint,rgba(245,181,68,.07))}
+  .block .bid{color:var(--muted)}
+  .block .bh{color:var(--cyan);word-break:break-all;margin-top:6px}
+  .block.tampered .bh{color:var(--warn)}
+  .block .bp{color:var(--faint);word-break:break-all;margin-top:4px}
+  .chain-link{flex:none;display:grid;place-items:center;color:var(--violet);padding:0 6px;font-size:18px}
+  .chain-link.broken{color:var(--warn)}
+  .verify-callout{margin-top:16px;border:1px solid rgba(245,181,68,.4);background:rgba(245,181,68,.07);border-radius:12px;padding:14px 16px;font-family:var(--font-mono);font-size:13px;color:var(--ink)}
+  .verify-callout .tok-amber{color:var(--warn);font-weight:600}
+
+  /* trust row */
+  .trust-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .trust-badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--surface);border-radius:9px;padding:8px 13px;font-size:14px;color:var(--muted);font-family:var(--font-mono)}
+  .trust-badge .ok-dot{width:8px;height:8px;border-radius:50%;background:var(--cyan)}
+
+  /* cta */
+  .cta-section{padding:76px 0;border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft);background:radial-gradient(120% 100% at 50% 0%,rgba(139,108,255,.07),transparent 60%)}
+  .cta-section h2{font-size:clamp(27px,4.5vw,37px);letter-spacing:-.02em;margin:0 0 12px}
+  .cta-section .lede{color:var(--muted);margin:0 0 28px;max-width:600px}
+
+  /* footer */
+  footer{padding:46px 0 64px;color:var(--muted);font-size:14.5px}
+  footer .foot-grid{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center}
+  footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
+  .foot-note{margin-top:18px;padding-top:18px;border-top:1px solid var(--border-soft);font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+  .foot-note b{color:var(--cyan);font-weight:500}
+
+  ul.feature-list{padding-left:0;list-style:none;margin:22px 0 0}
+  ul.feature-list li{position:relative;padding-left:30px;margin-bottom:12px;color:var(--muted)}
+  ul.feature-list li::before{content:"";position:absolute;left:2px;top:8px;width:10px;height:10px;border-radius:3px;background:var(--violet);transform:rotate(0)}
+  ul.feature-list li strong{color:var(--ink)}
+
+  /* QA: visible scroll affordance on overflowing code/diagram blocks */
+  .chain{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+  pre{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+  .chain::-webkit-scrollbar,pre::-webkit-scrollbar{height:8px}
+  .chain::-webkit-scrollbar-thumb,pre::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+  .chain::-webkit-scrollbar-track,pre::-webkit-scrollbar-track{background:transparent}
+  .block{min-width:142px}
+
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- NAV -->
+<nav class="nav" aria-label="Primary">
+  <div class="nav-inner">
+    <a class="wordmark" href="#top"><svg class="zmark" width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg>Zelo</a>
+    <div class="nav-links">
+      <a href="/docs/">Docs</a>
+      <a href="https://github.com/thgrcarvalho/zelo/blob/main/INTEGRATING.md" rel="noopener">INTEGRATING.md</a>
+      <a class="star-badge" href="https://github.com/thgrcarvalho/zelo" rel="noopener" aria-label="Star Zelo on GitHub">
+        <span aria-hidden="true">★</span> GitHub
+      </a>
+      <a class="pill" href="#waitlist">Join waitlist</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+<a id="top"></a>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow"><span class="mark-dot" aria-hidden="true"></span> Open-source LGPD toolkit · Apache-2.0</span>
+        <h1>Ship LGPD compliance in a sprint. <span class="accent">Prove it on every deadline.</span></h1>
+        <p class="subhead">
+          Zelo is the open-source, developer-first LGPD toolkit for Brazilian SaaS — a REST API and a Spring Boot starter that give you a consent ledger, deletion-request orchestration, and a tamper-evident, hash-chained audit trail. It's a control plane that holds <strong>zero end-user PII</strong>, so your data never leaves your database. Drop it in, keep your data, and walk into any ANPD inquiry with cryptographic proof the work was done on time. Apache-2.0, self-hostable with one <code>docker compose up</code>.
+        </p>
+
+        <div class="proof-chip" id="proofChip" data-state="loading" role="status" aria-live="polite">
+          <span class="proof-dot" aria-hidden="true"></span>
+          <span id="proofText">GET /v1/audit/verify — checking live chain…</span>
+        </div>
+      </div>
+
+      <!-- Email capture form (also reachable at #waitlist anchor below) -->
+      <div class="form-card" aria-labelledby="hero-form-title">
+        <h2 id="hero-form-title">Want the managed tier?</h2>
+        <p class="helper">Self-host free under Apache-2.0 today. Leave your email for early access to hosted Zelo.</p>
+        <form id="waitlistFormHero" novalidate>
+          <div class="field-row">
+            <div>
+              <label for="email-hero">Work email</label>
+              <input type="email" id="email-hero" name="email" autocomplete="email" placeholder="you@yourstartup.com.br" aria-describedby="err-hero" required>
+              <p class="form-error" id="err-hero" role="alert"></p>
+            </div>
+          </div>
+          <div class="field-row">
+            <div>
+              <label for="company-hero">Company <span style="opacity:.6">(optional)</span></label>
+              <input type="text" id="company-hero" name="company" autocomplete="organization" placeholder="Your SaaS">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn" id="submit-hero">Join the waitlist</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tabbed hero code block -->
+    <div class="code-card wide" style="margin-top:34px; max-width:var(--wide); margin-left:auto; margin-right:auto;">
+      <div class="code-head">
+        <span class="traffic" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="code-title">zelo — quickstart</span>
+        <div class="tabs" role="tablist" aria-label="Code examples">
+          <button type="button" class="tab" role="tab" id="tab-rest" aria-controls="panel-rest" aria-selected="true">REST curl</button>
+          <button type="button" class="tab" role="tab" id="tab-spring" aria-controls="panel-spring" aria-selected="false" tabindex="-1">Spring starter</button>
+          <button type="button" class="tab" role="tab" id="tab-verify" aria-controls="panel-verify" aria-selected="false" tabindex="-1">Verify chain</button>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="panel-rest" role="tabpanel" aria-labelledby="tab-rest" tabindex="0">
+<pre><code><span class="tok-com"># Record a consent decision — one REST call</span>
+curl -X POST https://api.zelocompliance.com/v1/consents \
+  -H <span class="tok-str">"Authorization: $ZELO_API_KEY"</span> \
+  -d <span class="tok-str">'{"external_id":"u_123","purpose_key":"marketing-emails","action":"GRANT","source":"signup-form"}'</span></code></pre>
+      </div>
+
+      <div class="tabpanel" id="panel-spring" role="tabpanel" aria-labelledby="tab-spring" tabindex="0" hidden>
+<pre><code><span class="tok-com">// Gate any feature on live consent — false for a never-seen user, never throws</span>
+<span class="tok-key">if</span> (zelo.isGranted(<span class="tok-str">"u_123"</span>, <span class="tok-str">"marketing-emails"</span>)) { sendNewsletter(user); }
+
+<span class="tok-com">// Handle a deletion request — Zelo signs the webhook, you run the erasure</span>
+<span class="tok-amber">@ZeloWebhook</span>(<span class="tok-str">"dsr.delete.requested"</span>)
+<span class="tok-key">public</span> Map&lt;String,Object&gt; erase(ZeloDeletionRequest req) {
+    users.deleteByExternalId(req.externalId());   <span class="tok-com">// your DB, your erasure</span>
+    <span class="tok-key">return</span> Map.of(<span class="tok-str">"deletedRows"</span>, <span class="tok-green">1</span>);          <span class="tok-com">// proof goes back to Zelo</span>
+}</code></pre>
+      </div>
+
+      <div class="tabpanel" id="panel-verify" role="tabpanel" aria-labelledby="tab-verify" tabindex="0" hidden>
+<pre><code><span class="tok-com"># Recompute the entire hash chain and prove it unbroken</span>
+GET https://api.zelocompliance.com/v1/audit/verify
+
+<span class="tok-mut">→</span> {<span class="tok-key">"ok"</span>:<span class="tok-green">true</span>,<span class="tok-key">"entries_checked"</span>:<span class="tok-green">N</span>}
+
+<span class="tok-com">// In the Spring starter — a green check for your admin dashboard</span>
+<span class="tok-key">boolean</span> intact = zelo.verifyAudit().ok();</code></pre>
+      </div>
+    </div>
+
+    <!-- Zero-PII diagram -->
+    <div class="pii-diagram" aria-label="Data flow: your database holds PII, Zelo holds only external_id and the hash chain">
+      <div class="pii-box">
+        <div class="lbl">Your database</div>
+        <div class="big">PII stays here</div>
+        <div class="tagrow">
+          <span class="tag danger">name</span>
+          <span class="tag danger">email</span>
+          <span class="tag danger">CPF</span>
+          <span class="tag danger">health data</span>
+        </div>
+      </div>
+      <div class="pii-arrow" aria-hidden="true">
+        <span class="line">→</span>
+        signed webhook<br>(HMAC-SHA256)
+      </div>
+      <div class="pii-box zelo">
+        <div class="lbl">Zelo control plane</div>
+        <div class="big">Zero end-user PII</div>
+        <div class="tagrow">
+          <span class="tag ok">external_id</span>
+          <span class="tag ok">consent</span>
+          <span class="tag ok">DSR state</span>
+          <span class="tag ok">hash chain</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- SECTION 1 -->
+<section>
+  <div class="wrap">
+    <p class="sec-kicker">The real risk</p>
+    <h2 class="sec-title">The fine isn't the scary part. Not being able to prove you complied is.</h2>
+    <p class="sec-body">
+      LGPD gives you hard deadlines on deletion requests and expects a defensible record of every consent and every erasure. Most teams bolt this on with a few database columns and good intentions — exactly what falls apart under an ANPD inquiry or acquisition diligence, because <strong>a column can be edited after the fact and nobody can tell</strong>. Zelo turns "we think we handled it" into a chain you can recompute and hand over: who consented, what was deleted, and that it happened before the clock ran out. When someone asks "prove it," you run one <code>curl</code> instead of digging through logs.
+    </p>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION 2 -->
+<section class="alt">
+  <div class="wrap">
+    <p class="sec-kicker">Drop-in</p>
+    <h2 class="sec-title">A starter, not a six-month project</h2>
+    <p class="sec-body">
+      Add one dependency, set your API key and webhook secret, and the whole LGPD surface collapses into method calls on an injected <code>ZeloClient</code>. Declare a purpose once at boot. Gate any feature on live consent — and <code>isGranted</code> returns <strong>false for a never-seen user</strong>, so it never throws. Record a decision with <code>grantConsent</code>; open an erasure with <code>requestDeletion</code>. No DTOs to hand-write, no schema to design. The same thing is a one-line REST call:
+    </p>
+    <div class="code-card" style="margin-top:22px;">
+      <div class="code-head">
+        <span class="traffic" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="code-title">POST /v1/consents</span>
+      </div>
+<pre><code>curl -X POST https://api.zelocompliance.com/v1/consents \
+  -H <span class="tok-str">"Authorization: $ZELO_API_KEY"</span> \
+  -d <span class="tok-str">'{"external_id":"u_123","purpose_key":"marketing-emails","action":"GRANT","source":"signup-form"}'</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION 3 -->
+<section>
+  <div class="wrap">
+    <p class="sec-kicker">Zero-PII by design</p>
+    <h2 class="sec-title">It never touches your users' PII — so it can't be your next breach</h2>
+    <p class="sec-body">
+      Zelo is a control plane, not a data store. It only ever sees an opaque <code>external_id</code> — your own user id — plus consent records, request state, and the audit trail. Names, emails, CPF, dates of birth, health data: all of it <strong>stays in your database</strong>, where it already lives. Most compliance tools become a second copy of everything sensitive you own — a honeypot waiting to leak. Zelo orchestrates operations on your data via signed webhooks instead, so there's nothing inside it worth stealing. Adopting compliance tooling shouldn't make you a bigger target; <strong>by design, it doesn't.</strong>
+    </p>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION 4 -->
+<section class="alt">
+  <div class="wrap">
+    <p class="sec-kicker">Deletion orchestration</p>
+    <h2 class="sec-title">Deletion that calls your code, keeps the receipt, and never misses a deadline</h2>
+    <p class="sec-body">
+      Open a request and Zelo computes the legal deadline and fires an HMAC-SHA256-signed webhook to your app. Annotate one method and your own erasure runs:
+    </p>
+    <div class="code-card" style="margin-top:22px;">
+      <div class="code-head">
+        <span class="traffic" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="code-title">DeletionHandler.java</span>
+      </div>
+<pre><code><span class="tok-amber">@ZeloWebhook</span>(<span class="tok-str">"dsr.delete.requested"</span>)
+<span class="tok-key">public</span> Map&lt;String,Object&gt; erase(ZeloDeletionRequest req) {
+    users.deleteByExternalId(req.externalId());  <span class="tok-com">// your DB, your erasure</span>
+    <span class="tok-key">return</span> Map.of(<span class="tok-str">"deletedRows"</span>, <span class="tok-green">1</span>);             <span class="tok-com">// proof goes back to Zelo</span>
+}</code></pre>
+    </div>
+    <p class="sec-body" style="margin-top:22px;">
+      The starter verifies the signature and freshness, calls you, and auto-fulfills the request with your return value as the audited proof. Throw from the handler and Zelo treats the erasure as failed and retries with backoff; an <span class="tok-amber" style="font-family:var(--mono);font-size:.92em">OVERDUE</span> sweep flags anything past its deadline as an audited SLA miss — so a missed request surfaces as <strong>an alert, not a finding</strong>. The whole loop runs end to end out of the box; the demo erases a user and self-fulfills in about a second.
+    </p>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION 5 — THE MOAT -->
+<section>
+  <div class="wrap">
+    <p class="sec-kicker">The moat</p>
+    <h2 class="sec-title">A hash-chained audit trail you can prove unbroken</h2>
+    <p class="sec-body">
+      Every compliance event is appended to a per-integrator, hash-chained log. The rule is published and reproducible:
+    </p>
+
+    <div class="code-card" style="margin-top:20px;">
+      <div class="code-head">
+        <span class="traffic" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="code-title">HashChain — entry hash rule</span>
+      </div>
+<pre><code><span class="tok-green">entry_hash</span> = SHA-256(
+  prev_hash       <span class="tok-com">// 64 zeros for the genesis entry</span>
+  + <span class="tok-str">"\n"</span> + event_type
+  + <span class="tok-str">"\n"</span> + canonical_json(payload)
+  + <span class="tok-str">"\n"</span> + occurred_at
+)</code></pre>
+    </div>
+
+    <p class="sec-body" style="margin-top:22px;">
+      <code>GET /v1/audit/verify</code> recomputes the entire chain and points straight at the first broken link, so tampering with, deleting, or reordering any historical entry is detected — and because the algorithm is <strong>pure and published</strong>, your proof trail can be independently re-implemented and re-verified. You never have to take our word for the math.
+    </p>
+
+    <!-- Chain diagram -->
+    <div class="chain" role="img" aria-label="Hash-chain diagram: entry 1 links to entry 2; entry 3 has been tampered, so its hash no longer matches the chain and verify reports the first broken entry.">
+      <div class="block">
+        <div class="bid"># 1 · genesis</div>
+        <div class="bp">prev: 000…000</div>
+        <div class="bh">hash: a91f…7c2</div>
+      </div>
+      <div class="chain-link" aria-hidden="true">→</div>
+      <div class="block">
+        <div class="bid"># 2</div>
+        <div class="bp">prev: a91f…7c2</div>
+        <div class="bh">hash: 4d80…e5b</div>
+      </div>
+      <div class="chain-link broken" aria-hidden="true">⚠</div>
+      <div class="block tampered">
+        <div class="bid"># 3 · tampered</div>
+        <div class="bp">prev: 4d80…e5b</div>
+        <div class="bh">hash: ✗ recompute fails</div>
+      </div>
+      <div class="chain-link" aria-hidden="true">→</div>
+      <div class="block">
+        <div class="bid"># 4</div>
+        <div class="bp">prev: …</div>
+        <div class="bh">hash: 1ba6…09f</div>
+      </div>
+    </div>
+
+    <div class="verify-callout">
+      <span class="tok-mut">GET /v1/audit/verify →</span> {<span class="tok-key">"ok"</span>:<span class="tok-amber">false</span>, <span class="tok-key">"first_broken_entry_id"</span>:<span class="tok-amber">3</span>, <span class="tok-key">"detail"</span>:<span class="tok-str">"hash mismatch at entry 3"</span>}
+    </div>
+
+    <p class="sec-body" style="margin-top:22px;">
+      <code>{"ok":true,"entries_checked":N}</code> is the closest thing to unforgeable evidence that your compliance work was real and on time. The v1 code is easy to clone; a <strong>multi-year, untampered proof trail is not</strong>. In the starter it's one call: <code>zelo.verifyAudit().ok()</code> — a green check for your admin dashboard.
+    </p>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- SECTION 6 -->
+<section class="alt">
+  <div class="wrap">
+    <p class="sec-kicker">Open core</p>
+    <h2 class="sec-title">Open source you can read, run, and trust</h2>
+    <p class="sec-body">
+      Apache-2.0 and self-hostable from day one: <code>docker compose up</code> brings up the control plane, a demo integrator, and Postgres, and runs the full deletion loop end to end. Built on Java 21, Spring Boot 3, and PostgreSQL.
+    </p>
+    <ul class="feature-list">
+      <li><strong>Append-only, explicit JDBC — no ORM.</strong> The consent ledger and audit log enforce that discipline at the data layer.</li>
+      <li><strong>Transactional outbox.</strong> An event is queued in the same commit as the request it belongs to, then signed and delivered with HMAC-SHA256.</li>
+      <li><strong>Idempotent &amp; rate-limited writes</strong> via <code>Idempotency-Key</code>.</li>
+      <li><strong>Ten LGPD Art. 7 legal bases as a typed enum</strong> — CONSENT, CONTRACT, LEGAL_OBLIGATION, HEALTH_PROTECTION, LEGITIMATE_INTEREST, and the rest.</li>
+      <li><strong>No vendor lock-in, no PII leaving your perimeter, no sales call to start.</strong></li>
+    </ul>
+    <p class="sec-body" style="margin-top:20px;">
+      Read every line on GitHub before you trust it with a single request: <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">github.com/thgrcarvalho/zelo</a>.
+    </p>
+    <div class="trust-row">
+      <span class="trust-badge"><span class="ok-dot" aria-hidden="true"></span> Apache-2.0</span>
+      <span class="trust-badge"><span class="ok-dot" aria-hidden="true"></span> docker compose up</span>
+      <span class="trust-badge"><span class="ok-dot" aria-hidden="true"></span> Java 21 · Spring Boot 3</span>
+      <span class="trust-badge"><span class="ok-dot" aria-hidden="true"></span> PostgreSQL</span>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="waitlist">
+  <div class="wrap">
+    <h2>Self-host free today. Want the managed tier?</h2>
+    <p class="lede">
+      Self-host now under Apache-2.0 — <span class="inline-code">docker compose up</span> and you're running. Leave your email for early access to hosted Zelo: a managed control plane with signed-webhook delivery, deadline monitoring, and the verifiable audit chain, run for you. No spam, just an invite when it's ready.
+    </p>
+
+    <div class="form-card" aria-labelledby="cta-form-title" style="max-width:560px;">
+      <h2 id="cta-form-title" style="font-size:18px;">Get early access</h2>
+      <p class="helper">Early access to hosted Zelo.</p>
+      <form id="waitlistFormCta" novalidate>
+        <div class="field-row two">
+          <div>
+            <label for="email-cta">Work email</label>
+            <input type="email" id="email-cta" name="email" autocomplete="email" placeholder="you@yourstartup.com.br" aria-describedby="err-cta" required>
+          </div>
+          <div>
+            <label for="company-cta">Company <span style="opacity:.6">(optional)</span></label>
+            <input type="text" id="company-cta" name="company" autocomplete="organization" placeholder="Your SaaS">
+          </div>
+        </div>
+        <p class="form-error" id="err-cta" role="alert"></p>
+        <div class="form-actions">
+          <button type="submit" class="btn" id="submit-cta">Join the waitlist</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap wide">
+    <div class="foot-grid">
+      <a class="wordmark" href="#top" style="font-size:17px;"><svg class="zmark" width="21" height="21" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg>Zelo</a>
+      <span>Open source · Apache-2.0</span>
+      <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">github.com/thgrcarvalho/zelo</a>
+      <a href="https://github.com/thgrcarvalho/zelo/blob/main/INTEGRATING.md" rel="noopener">INTEGRATING.md</a>
+    </div>
+    <p class="foot-note">Zelo is a control plane that stores <b>zero end-user PII</b>.</p>
+  </div>
+</footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Tabbed code block ---------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  function selectTab(tab) {
+    tabs.forEach(function (t) {
+      var selected = t === tab;
+      t.setAttribute('aria-selected', selected ? 'true' : 'false');
+      t.tabIndex = selected ? 0 : -1;
+      var panel = document.getElementById(t.getAttribute('aria-controls'));
+      if (panel) panel.hidden = !selected;
+    });
+  }
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener('click', function () { selectTab(tab); });
+    tab.addEventListener('keydown', function (e) {
+      var next;
+      if (e.key === 'ArrowRight') next = tabs[(i + 1) % tabs.length];
+      else if (e.key === 'ArrowLeft') next = tabs[(i - 1 + tabs.length) % tabs.length];
+      else if (e.key === 'Home') next = tabs[0];
+      else if (e.key === 'End') next = tabs[tabs.length - 1];
+      else return;
+      e.preventDefault();
+      selectTab(next);
+      next.focus();
+    });
+  });
+
+  /* ---------- Live proof chip ---------- */
+  var chip = document.getElementById('proofChip');
+  var proofText = document.getElementById('proofText');
+  if (chip && proofText && typeof fetch === 'function') {
+    var controller = ('AbortController' in window) ? new AbortController() : null;
+    var timer = setTimeout(function () { if (controller) controller.abort(); }, 6000);
+    fetch('https://api.zelocompliance.com/v1/audit/verify', {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      signal: controller ? controller.signal : undefined
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('bad status');
+        return r.json();
+      })
+      .then(function (data) {
+        clearTimeout(timer);
+        if (data && data.ok === true) {
+          var n = (typeof data.entries_checked !== 'undefined') ? data.entries_checked
+                : (typeof data.entriesChecked !== 'undefined') ? data.entriesChecked : 'N';
+          chip.setAttribute('data-state', 'ok');
+          proofText.innerHTML = 'audit/verify → <span class="tok-green">{"ok":true,"entries_checked":' + String(n).replace(/[<>&]/g, '') + '}</span>';
+        } else {
+          throw new Error('not ok');
+        }
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        chip.setAttribute('data-state', 'err');
+        proofText.textContent = 'audit/verify — live chain (try it: GET /v1/audit/verify)';
+      });
+  } else if (chip && proofText) {
+    chip.setAttribute('data-state', 'err');
+    proofText.textContent = 'audit/verify — GET /v1/audit/verify';
+  }
+
+  /* ---------- Waitlist form ---------- */
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function wireForm(formId, emailId, companyId, errId, submitId) {
+    var form = document.getElementById(formId);
+    if (!form) return;
+    var emailInput = document.getElementById(emailId);
+    var companyInput = document.getElementById(companyId);
+    var errEl = document.getElementById(errId);
+    var submitBtn = document.getElementById(submitId);
+    var busy = false;
+
+    function showError(msg) {
+      errEl.textContent = msg;
+      emailInput.setAttribute('aria-invalid', 'true');
+    }
+    function clearError() {
+      errEl.textContent = '';
+      emailInput.removeAttribute('aria-invalid');
+    }
+
+    emailInput.addEventListener('input', function () {
+      if (errEl.textContent) clearError();
+    });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (busy) return;
+      clearError();
+
+      var email = (emailInput.value || '').trim();
+      var company = (companyInput && companyInput.value || '').trim();
+
+      if (!EMAIL_RE.test(email)) {
+        showError('Enter a valid email address.');
+        emailInput.focus();
+        return;
+      }
+
+      busy = true;
+      var originalLabel = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>Joining…';
+
+      var payload = { email: email };
+      if (company) payload.company = company;
+
+      function fail() {
+        busy = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
+        showError('Something went wrong — please try again.');
+      }
+
+      if (typeof fetch !== 'function') { fail(); return; }
+
+      fetch('/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function (res) {
+          if (res.status !== 200) throw new Error('http ' + res.status);
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data || data.ok !== true) throw new Error('not ok');
+          // Success — replace form in place
+          var success = document.createElement('div');
+          success.className = 'form-success';
+          success.setAttribute('role', 'status');
+          success.setAttribute('aria-live', 'polite');
+          success.setAttribute('tabindex', '-1');
+          success.innerHTML =
+            '<span class="check-circle" aria-hidden="true">✓</span>' +
+            "<span>You're on the list — we'll be in touch.</span>";
+          form.replaceWith(success);
+          success.focus();
+        })
+        .catch(function () {
+          fail();
+          // keep entered email + company so the user can retry (values untouched)
+        });
+    });
+  }
+
+  wireForm('waitlistFormHero', 'email-hero', 'company-hero', 'err-hero', 'submit-hero');
+  wireForm('waitlistFormCta', 'email-cta', 'company-cta', 'err-cta', 'submit-cta');
+})();
+</script>
+</body>
+</html>

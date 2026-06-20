@@ -1,16 +1,34 @@
 # Deploy assets — self-service dashboard (`/app`) + account API proxy
 
-These are the **box-side** artifacts for the instant, email-verified self-service
-account surface. They sit in the repo (versioned, reviewable) but are applied to the
-OCI host by hand, the same way the landing page and `/docs/` are. Nothing here is
-built by Gradle or CI; the only CI-gated change is the backend + `docker-compose.yml`
-env wiring.
+These are the **box-side** artifacts for the public web surface (landing, dashboard,
+docs) and the account API proxy. They sit in the repo (versioned, reviewable) but are
+applied to the OCI host by hand. Nothing here is built by Gradle or CI; the only
+CI-gated change is the backend + `docker-compose.yml` env wiring.
+
+`deploy/site/` is a 1:1 mirror of the box web root `/var/www/zelocompliance/`, so a
+deploy is a single `rsync` (step 4). All three pages share one **visual identity**
+(below); fonts are self-hosted — a zero-PII product makes no third-party font request.
 
 ```
 deploy/
-├── app/index.html              # the dashboard, served at https://zelocompliance.com/app/
+├── site/                       # full static web root  ->  /var/www/zelocompliance/
+│   ├── index.html              #   landing                (/)
+│   ├── app/index.html          #   self-service dashboard (/app/)
+│   ├── docs/index.html         #   integration guide      (/docs/)
+│   ├── assets/fonts/*.woff2     #   self-hosted brand fonts (OFL)
+│   ├── assets/og.png           #   social share image
+│   └── favicon.svg · favicon.ico · favicon-32/16.png · apple-touch-icon.png
 └── nginx/account-proxy.conf    # the /account/** -> :8080 location blocks (landing vhost)
 ```
+
+### Visual identity
+
+Dark "warm violet-black" theme. Signature **violet `#8B6CFF`** (brand/primary),
+**cyan `#4FD8E6`** (verified/proof accents), green=success, amber=warn, rose=danger.
+The logo is an append-only **"Z"** mark whose violet diagonal links two committed
+record bars (the consent ledger / hash chain as a letterform). Type: **Space Grotesk**
+(display) · **IBM Plex Sans** (UI/body) · **JetBrains Mono** (code, hashes, keys).
+Design tokens are inline `:root` vars per page; all text clears WCAG-AA contrast.
 
 Onboarding is **instant + email-verified**: a developer signs up, clicks the link in
 the verification email, and is immediately ACTIVE — there is no operator and no
@@ -74,17 +92,22 @@ cd ~/zelo && git fetch --depth 1 origin main && git reset --hard FETCH_HEAD
 docker compose up -d --build
 ```
 
-## 4. Publish the dashboard to the landing docroot
+## 4. Publish the static site (landing + dashboard + docs + assets)
+
+`deploy/site/` mirrors the web root, so one `rsync` publishes everything. No `--delete`,
+so box-only files (`*.bak`, the waitlist store) stay untouched:
 
 ```sh
-sudo mkdir -p /var/www/zelocompliance/app
-sudo cp ~/zelo/deploy/app/index.html /var/www/zelocompliance/app/index.html
-sudo chown -R www-data:www-data /var/www/zelocompliance/app
-sudo chmod 644 /var/www/zelocompliance/app/index.html
+rsync -az --rsync-path="sudo rsync" ~/zelo/deploy/site/ /var/www/zelocompliance/
+sudo chown -R www-data:www-data /var/www/zelocompliance
 ```
 
-`/app/` resolves via the landing vhost's existing `try_files $uri $uri/` — no nginx
-change is needed *for the static page*. The verify/reset email links are
+(From a workstation: `rsync -az --rsync-path="sudo rsync" -e "ssh -i <key>" \
+deploy/site/ <user>@<host>:/var/www/zelocompliance/`.)
+
+`/`, `/app/`, and `/docs/` all resolve via the landing vhost's existing
+`try_files $uri $uri/` — no nginx change is needed *for the static pages*. The
+verify/reset email links are
 `/app/#verify=<token>` / `/app/#reset=<token>`; the token rides the URL **fragment**,
 which the browser never sends to the server (so it's never in nginx logs or `Referer`).
 
