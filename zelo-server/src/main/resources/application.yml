@@ -19,11 +19,11 @@ spring:
     locations: classpath:db/migration
   task:
     scheduling:
-      # Two @Scheduled jobs share the scheduler — the 60s DSR overdue sweep and the
-      # hourly token purge. Give it >1 thread so a slow or stuck purge can never delay
-      # the sweep. Bump if more background jobs are added.
+      # Three @Scheduled jobs share the scheduler — the 60s DSR overdue sweep, the hourly
+      # token purge, and the outbox health check. Give it enough threads that a slow or
+      # stuck job can never delay the others. Bump if more background jobs are added.
       pool:
-        size: 2
+        size: 3
   jackson:
     # The public API uses snake_case (external_id, purpose_key, legal_basis).
     property-naming-strategy: SNAKE_CASE
@@ -84,6 +84,13 @@ zelo:
     # access requests, which we adopt as the default SLA for deletion too.
     delete-deadline-days: ${ZELO_DELETE_DEADLINE_DAYS:15}
     overdue-sweep-interval-ms: ${ZELO_OVERDUE_SWEEP_MS:60000}
+  outbox:
+    # Operator-visibility for the webhook dispatcher (the library handles delivery).
+    # health-interval-ms: how often to scan for dead-lettered/stuck events and refresh
+    # the zelo.outbox.failed gauge. warn-attempts: WARN once a PENDING event has retried
+    # this many times (the integrator endpoint is likely failing).
+    health-interval-ms: ${ZELO_OUTBOX_HEALTH_INTERVAL_MS:300000}
+    warn-attempts: ${ZELO_OUTBOX_WARN_ATTEMPTS:3}
   bootstrap:
     # When api-key is set, an API key with this raw value is seeded on startup
     # (idempotent). Leave blank in production; provision keys out-of-band.
@@ -107,6 +114,11 @@ zelo:
     # instant + email-verified (see zelo.mail) — there is no operator to seed.
     session-secret: ${ZELO_AUTH_SECRET:}
     session-ttl-hours: ${ZELO_SESSION_TTL_HOURS:168}
+    # Per-account brute-force lockout on /account/login: after this many consecutive
+    # failures the account is locked (429) for the window below. Travels with the app
+    # (covers self-host); the hosted tier also has an nginx per-IP limit on login.
+    login-max-failures: ${ZELO_LOGIN_MAX_FAILURES:10}
+    login-lockout-minutes: ${ZELO_LOGIN_LOCKOUT_MINUTES:15}
   mail:
     # Verification + password-reset email. enabled=false uses a logging no-op
     # sender; with require-verification=true that makes signup fail closed (503)

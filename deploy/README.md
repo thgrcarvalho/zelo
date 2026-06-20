@@ -184,6 +184,20 @@ sudo systemctl start zelo-backup.service                 # take one now
 /usr/local/bin/zelo-pg-restore.sh "$(ls -1t /var/backups/zelo/*.sql.gz | head -1)"  # drill
 ```
 
+## 7. Monitoring, alerting & edge rate-limit
+
+External uptime + alerting and webhook-backlog visibility — see
+**[`monitoring/README.md`](monitoring/README.md)**. From a host with the OCI CLI:
+
+```sh
+COMPARTMENT_OCID=<compartment> ALERT_EMAIL=you@example.com ./deploy/monitoring/uptime-setup.sh
+```
+
+Apply the edge rate-limit on the **api** vhost (`/etc/nginx/sites-available/zelo`) per
+**[`nginx/api-ratelimit.conf`](nginx/api-ratelimit.conf)** — a per-IP `limit_req` on the
+public `/v1/audit/verify/demo` and a real-client-IP `X-Forwarded-For` so the in-app
+limiter can't be spoofed — then `sudo nginx -t && sudo systemctl reload nginx`.
+
 ## Verify
 
 ```sh

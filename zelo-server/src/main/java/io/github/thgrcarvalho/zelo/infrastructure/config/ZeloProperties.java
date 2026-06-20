@@ -143,6 +143,14 @@ public class ZeloProperties {
         @Min(1)
         @Max(8760)
         private int sessionTtlHours = 168;
+        /** Consecutive failed logins before an account is temporarily locked (brute-force backstop). */
+        @Min(3)
+        @Max(100)
+        private int loginMaxFailures = 10;
+        /** How long an account stays locked after crossing the failure threshold, minutes. */
+        @Min(1)
+        @Max(1440)
+        private int loginLockoutMinutes = 15;
 
         public String getSessionSecret() {
             return sessionSecret;
@@ -158,6 +166,22 @@ public class ZeloProperties {
 
         public void setSessionTtlHours(int sessionTtlHours) {
             this.sessionTtlHours = sessionTtlHours;
+        }
+
+        public int getLoginMaxFailures() {
+            return loginMaxFailures;
+        }
+
+        public void setLoginMaxFailures(int loginMaxFailures) {
+            this.loginMaxFailures = loginMaxFailures;
+        }
+
+        public int getLoginLockoutMinutes() {
+            return loginLockoutMinutes;
+        }
+
+        public void setLoginLockoutMinutes(int loginLockoutMinutes) {
+            this.loginLockoutMinutes = loginLockoutMinutes;
         }
     }
 

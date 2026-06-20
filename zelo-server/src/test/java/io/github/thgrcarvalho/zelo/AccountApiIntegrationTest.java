@@ -44,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
         "zelo.auth.session-secret=test-session-secret-please-change-in-prod",
+        "zelo.auth.login-max-failures=5",
         "zelo.mail.enabled=true",
         "zelo.mail.from=no-reply@zelo.test",
         "zelo.mail.base-url=https://zelo.test",
@@ -225,6 +226,57 @@ class AccountApiIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isNoContent());
         // Same 204 as a real account, and no email is sent.
         assertThat(greenMail.waitForIncomingEmail(1000, 1)).isFalse();
+    }
+
+    @Test
+    void lockoutAfterTooManyFailedLogins() throws Exception {
+        mvc.perform(post("/account/signup").contentType(JSON).content(signupBody("lock@acme.test", "Acme")))
+                .andExpect(status().isAccepted());
+
+        // The configured threshold (login-max-failures=5) of wrong-password attempts → 401 each.
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(post("/account/login").contentType(JSON)
+                            .content("{\"email\":\"lock@acme.test\",\"password\":\"wrong-password\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+        // Now locked: even the CORRECT password is refused with 429 (lock checked before verify).
+        mvc.perform(post("/account/login").contentType(JSON)
+                        .content("{\"email\":\"lock@acme.test\",\"password\":\"user-pass-123\"}"))
+                .andExpect(status().isTooManyRequests());
+
+        // The lock is per-account, not per-IP: a different account from the same caller still logs in.
+        mvc.perform(post("/account/signup").contentType(JSON).content(signupBody("free@acme.test", "Acme")))
+                .andExpect(status().isAccepted());
+        mvc.perform(post("/account/login").contentType(JSON)
+                        .content("{\"email\":\"free@acme.test\",\"password\":\"user-pass-123\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void passwordResetLiftsTheLockout() throws Exception {
+        // signup + verify (this consumes the verification email so the reset email counts correctly).
+        activeAccount("recover@acme.test", "Acme");
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(post("/account/login").contentType(JSON)
+                            .content("{\"email\":\"recover@acme.test\",\"password\":\"wrong\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+        mvc.perform(post("/account/login").contentType(JSON)
+                        .content("{\"email\":\"recover@acme.test\",\"password\":\"user-pass-123\"}"))
+                .andExpect(status().isTooManyRequests());
+
+        // A locked-out legit user recovers via password reset (which clears the lockout)...
+        mvc.perform(post("/account/password-reset/request").contentType(JSON)
+                        .content("{\"email\":\"recover@acme.test\"}"))
+                .andExpect(status().isNoContent());
+        String token = awaitToken("recover@acme.test", "reset");
+        mvc.perform(post("/account/password-reset/confirm").contentType(JSON)
+                        .content("{\"token\":\"" + token + "\",\"password\":\"brand-new-pass-456\"}"))
+                .andExpect(status().isNoContent());
+        // ...and logging in with the new password succeeds (not 429).
+        mvc.perform(post("/account/login").contentType(JSON)
+                        .content("{\"email\":\"recover@acme.test\",\"password\":\"brand-new-pass-456\"}"))
+                .andExpect(status().isOk());
     }
 
     @Test
