@@ -19,9 +19,11 @@ import io.github.thgrcarvalho.zelo.infrastructure.config.ZeloProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
@@ -65,16 +67,18 @@ public class AccountService {
     private final AccountTokenRepository tokens;
     private final EmailSender emailSender;
     private final ApplicationEventPublisher events;
+    private final JdbcTemplate jdbc;
     private final ZeloProperties.Mail mail;
     private final ZeloProperties.Auth auth;
 
     public AccountService(AccountRepository accounts, AccountTokenRepository tokens,
                           EmailSender emailSender, ApplicationEventPublisher events,
-                          ZeloProperties properties) {
+                          JdbcTemplate jdbc, ZeloProperties properties) {
         this.accounts = accounts;
         this.tokens = tokens;
         this.emailSender = emailSender;
         this.events = events;
+        this.jdbc = jdbc;
         this.mail = properties.getMail();
         this.auth = properties.getAuth();
     }
@@ -239,6 +243,28 @@ public class AccountService {
         accounts.save(account);
         accounts.clearFailedLogins(account.getId());
         log.info("Password reset completed for account {} — sessions invalidated", account.getId());
+    }
+
+    /**
+     * Permanently delete an account — the operator's own LGPD erasure of their B2B
+     * contact data. The account's API keys are <em>revoked and detached</em>, not
+     * deleted: the hash-chained audit trail they scope is append-only legal evidence
+     * with no end-user PII, so it must survive — but the keys can no longer
+     * authenticate and no longer point at the erased account. Tokens and the account
+     * row (email + password hash) are then removed. All-or-nothing in one transaction.
+     */
+    @Transactional
+    public void deleteAccount(UUID accountId) {
+        if (!accounts.existsById(accountId)) {
+            throw new ResourceNotFoundException("Account " + accountId + " not found");
+        }
+        Timestamp now = Timestamp.from(Instant.now());
+        int keys = jdbc.update(
+                "UPDATE api_keys SET account_id = NULL, revoked_at = COALESCE(revoked_at, ?) WHERE account_id = ?",
+                now, accountId);
+        jdbc.update("DELETE FROM account_tokens WHERE account_id = ?", accountId);
+        jdbc.update("DELETE FROM accounts WHERE id = ?", accountId);
+        log.info("Account {} deleted; {} API key(s) revoked + detached (audit chains preserved)", accountId, keys);
     }
 
     /** Load an account by id, or 404. */

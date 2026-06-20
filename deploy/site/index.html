@@ -346,7 +346,7 @@ GET https://api.zelocompliance.com/v1/audit/verify
     <p class="sec-kicker">Drop-in</p>
     <h2 class="sec-title">A starter, not a six-month project</h2>
     <p class="sec-body">
-      Add one dependency, set your API key and webhook secret, and the whole LGPD surface collapses into method calls on an injected <code>ZeloClient</code>. Declare a purpose once at boot. Gate any feature on live consent — and <code>isGranted</code> returns <strong>false for a never-seen user</strong>, so it never throws. Record a decision with <code>grantConsent</code>; open an erasure with <code>requestDeletion</code>. No DTOs to hand-write, no schema to design. The same thing is a one-line REST call:
+      Add one dependency, set your API key and webhook secret, and consent + deletion-request compliance becomes method calls on an injected <code>ZeloClient</code>. Declare a purpose once at boot. Gate any feature on live consent — and <code>isGranted</code> returns <strong>false for a never-seen user</strong>, so it never throws. Record a decision with <code>grantConsent</code>; open an erasure with <code>requestDeletion</code>. No DTOs to hand-write, no schema to design. The same thing is a one-line REST call:
     </p>
     <div class="code-card" style="margin-top:22px;">
       <div class="code-head">
@@ -524,7 +524,7 @@ GET https://api.zelocompliance.com/v1/audit/verify
       <a href="/legal/privacidade.html">Privacy</a>
       <a href="/legal/dpa.html">DPA</a>
     </div>
-    <p class="foot-note">Zelo is a control plane that stores <b>zero end-user PII</b>.</p>
+    <p class="foot-note">Zelo is a control plane that stores <b>zero end-user PII</b>. Hosted data — developer accounts and the audit trail — resides in Brazil (OCI São Paulo).</p>
   </div>
 </footer>
 </main>

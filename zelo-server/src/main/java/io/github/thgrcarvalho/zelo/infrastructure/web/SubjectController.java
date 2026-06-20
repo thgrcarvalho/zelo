@@ -7,6 +7,7 @@ import io.github.thgrcarvalho.zelo.domain.subject.Subject;
 import io.github.thgrcarvalho.zelo.infrastructure.security.ApiKeyPrincipal;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,7 +34,7 @@ public class SubjectController {
         return new SubjectResponse(subject.getId(), subject.getExternalId(), subject.getCreatedAt());
     }
 
-    public record UpsertSubjectRequest(@NotBlank String externalId) {
+    public record UpsertSubjectRequest(@NotBlank @Size(max = 255) String externalId) {
     }
 
     public record SubjectResponse(UUID id, String externalId, Instant createdAt) {

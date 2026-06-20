@@ -1,5 +1,7 @@
 package io.github.thgrcarvalho.zelo;
 
+import io.github.thgrcarvalho.zelo.domain.crypto.Hashes;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +50,34 @@ class ConsentApiIntegrationTest extends AbstractIntegrationTest {
     void rejectsAnInvalidApiKey() throws Exception {
         mvc.perform(get("/v1/purposes").header(HttpHeaders.AUTHORIZATION, "Bearer wrong-key"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void oneTenantCannotSeeAnotherTenantsData() throws Exception {
+        // Tenant A (the bootstrap key) declares a purpose and records consent for "alice".
+        mvc.perform(post("/v1/purposes").header(HttpHeaders.AUTHORIZATION, KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"key\":\"marketing\",\"description\":\"Marketing\",\"legal_basis\":\"CONSENT\"}"))
+                .andExpect(status().isCreated());
+        mvc.perform(post("/v1/consents").header(HttpHeaders.AUTHORIZATION, KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"external_id\":\"alice\",\"purpose_key\":\"marketing\",\"action\":\"GRANT\"}"))
+                .andExpect(status().isOk());
+
+        // Tenant B: a separate key (idempotent insert so the test re-runs cleanly).
+        String keyB = "tenant-b-key";
+        jdbc.update("INSERT INTO api_keys (id, key_hash, name, created_at) VALUES (?, ?, 'tenant-b', now()) "
+                + "ON CONFLICT (key_hash) DO NOTHING", UUID.randomUUID(), Hashes.sha256Hex(keyB));
+
+        // B sees NONE of A's data: not the subject, not the purpose, not the audit chain.
+        mvc.perform(get("/v1/consents").header(HttpHeaders.AUTHORIZATION, keyB).param("subject", "alice"))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/v1/purposes").header(HttpHeaders.AUTHORIZATION, keyB))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/v1/audit/verify").header(HttpHeaders.AUTHORIZATION, keyB))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries_checked").value(0));
     }
 
     @Test

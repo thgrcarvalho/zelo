@@ -132,6 +132,19 @@ public class AccountController {
         return MeResponse.from(accounts.require(principal.id()));
     }
 
+    /**
+     * Delete the signed-in account (operator self-erasure under LGPD). The account's
+     * API keys are revoked + detached so the audit chains they scope survive as
+     * evidence; the account record (email + password hash) is erased and the session
+     * cleared. Irreversible.
+     */
+    @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMe(AccountPrincipal principal, HttpServletResponse response) {
+        accounts.deleteAccount(principal.id());
+        clearSession(response);
+    }
+
     /** Re-send the verification email for the signed-in (unverified) account. Always 204. */
     @PostMapping("/verify-email/resend")
     @ResponseStatus(HttpStatus.NO_CONTENT)

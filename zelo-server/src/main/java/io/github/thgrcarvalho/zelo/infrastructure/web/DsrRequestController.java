@@ -9,6 +9,7 @@ import io.github.thgrcarvalho.zelo.domain.dsr.DsrType;
 import io.github.thgrcarvalho.zelo.infrastructure.security.ApiKeyPrincipal;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,7 +58,7 @@ public class DsrRequestController {
         return RequestResponse.from(dsrService.fulfill(principal.id(), id, proof), Instant.now());
     }
 
-    public record CreateRequest(@NotBlank String externalId, DsrType type) {
+    public record CreateRequest(@NotBlank @Size(max = 255) String externalId, DsrType type) {
     }
 
     public record FulfillRequest(Map<String, Object> proof) {
