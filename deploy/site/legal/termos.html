@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Termos de Uso — Zelo</title>
+<meta name="description" content="Termos de Uso do serviço Zelo — toolkit de conformidade com a LGPD.">
+<link rel="canonical" href="https://zelocompliance.com/legal/termos.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0B0A12">
+<link rel="stylesheet" href="/legal/legal.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="wordmark" href="/"><svg class="zmark" width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg> Zelo</a>
+    <nav><a href="/">Início</a><a href="/docs/">Docs</a></nav>
+  </div>
+</header>
+<main class="wrap">
+<h1>Termos de Uso do Zelo</h1>
+<p class="lede">Estes Termos regem o uso do Zelo, um toolkit open-source de conformidade com a LGPD e seu serviço gerenciado em zelocompliance.com.</p>
+<p class="updated">Última atualização: 20 de junho de 2026</p>
+
+<div class="note"><strong>Versão beta.</strong> O Zelo encontra-se em versão v1/beta, oferecido gratuitamente neste momento. Funcionalidades, limites e condições podem mudar. Leia também a <strong>Política de Privacidade</strong> e o <strong>Adendo de Tratamento de Dados (DPA/Adendo de Operador)</strong>, que integram estes Termos.</div>
+
+<h2>1. Objeto e descrição do serviço</h2>
+<p>O Zelo é um toolkit de conformidade com a <strong>Lei Geral de Proteção de Dados Pessoais — LGPD (Lei nº 13.709/2018)</strong>, voltado a aplicações SaaS brasileiras. Ele é distribuído em duas modalidades:</p>
+<ul>
+<li><strong>Núcleo open-source:</strong> licenciado sob <strong>Apache-2.0</strong> e auto-hospedável (self-host). O uso dessa modalidade é regido exclusivamente pela licença Apache-2.0 (vide nota ao final).</li>
+<li><strong>Serviço gerenciado (hosted):</strong> operado pelo Zelo em <code>zelocompliance.com</code> (painel em <code>/app</code>) e <code>api.zelocompliance.com</code>. Estes Termos aplicam-se a esta modalidade.</li>
+</ul>
+<p>O Zelo funciona como um <strong>plano de controle que não armazena os dados pessoais dos titulares</strong> do integrador. Ele mantém apenas: um <code>external_id</code> opaco definido pela aplicação do integrador, registros de consentimento, o estado de solicitações de titular (DSR) e uma <strong>trilha de auditoria encadeada por hash</strong> (tamper-evident). Os dados pessoais reais permanecem no banco de dados do integrador. O Zelo orquestra operações de conformidade (por exemplo, exclusão) por meio de <strong>webhooks assinados (HMAC-SHA256)</strong>.</p>
+
+<h2>2. Elegibilidade e conta</h2>
+<p>Para usar o serviço gerenciado, você deve ter capacidade legal para contratar e atuar como desenvolvedor-integrador de uma aplicação. O cadastro é <strong>instantâneo e com verificação por e-mail</strong>: você se registra, confirma o e-mail e emite sua própria chave de API.</p>
+<ul>
+<li>Você é responsável por manter a confidencialidade das suas <strong>credenciais e chaves de API</strong>.</li>
+<li>Toda atividade realizada com a sua chave de API é considerada sua responsabilidade.</li>
+<li>Você deve fornecer informações de cadastro verídicas e mantê-las atualizadas.</li>
+<li>Em caso de comprometimento de credenciais, você deve revogar a chave e notificar imediatamente o <code>privacidade@zelocompliance.com</code>.</li>
+</ul>
+
+<h2>3. Uso aceitável</h2>
+<p>Ao usar o serviço gerenciado, você concorda em <strong>não</strong>:</p>
+<ul>
+<li>utilizar o serviço para qualquer finalidade ilícita ou em violação à LGPD ou a outras leis aplicáveis;</li>
+<li>tentar obter acesso não autorizado, realizar <strong>engenharia reversa maliciosa</strong>, contornar controles de segurança ou explorar vulnerabilidades (a análise legítima do código open-source sob Apache-2.0 não é vedada);</li>
+<li>sobrecarregar, degradar ou prejudicar a disponibilidade da infraestrutura (por exemplo, requisições abusivas, ataques de negação de serviço ou contorno de limites de uso);</li>
+<li>enviar à API dados pessoais de titulares que não deveriam ali residir — lembre-se de que o Zelo armazena apenas o <code>external_id</code> opaco e metadados de conformidade, não os dados pessoais em si;</li>
+<li>revender, sublicenciar ou disponibilizar o serviço gerenciado a terceiros de forma que viole estes Termos.</li>
+</ul>
+
+<h2>4. Papéis sob a LGPD</h2>
+<p>A atribuição de papéis sob a LGPD é distinta conforme o tipo de dado:</p>
+<ul>
+<li><strong>Operações de conformidade do integrador:</strong> em relação aos dados pessoais dos titulares (usuários finais do integrador), <strong>você, integrador, é o Controlador</strong> e o <strong>Zelo é o Operador</strong>, tratando dados em seu nome e conforme suas instruções. Os detalhes estão no <strong>Adendo de Operador (DPA)</strong> e na <strong>Política de Privacidade</strong>.</li>
+<li><strong>Dados da sua conta:</strong> em relação aos dados de cadastro do desenvolvedor-integrador, o <strong>Zelo é o Controlador</strong>.</li>
+</ul>
+<div class="note"><strong>Ressalva — dados da conta.</strong> Para operar o serviço gerenciado, o Zelo armazena dados da conta do desenvolvedor-integrador: e-mail, nome da organização, <strong>hash da senha (PBKDF2-SHA256)</strong> e logs técnicos (por exemplo, IP e carimbos de data/hora). Quanto a esses dados, o Zelo atua como <strong>Controlador</strong>, conforme detalhado na Política de Privacidade.</div>
+
+<h2>5. Infraestrutura e suboperadores</h2>
+<p>O serviço gerenciado é hospedado na <strong>Oracle Cloud Infrastructure (OCI)</strong>, região <strong>Brasil Sudeste (São Paulo, sa-saopaulo-1)</strong>, com os dados da plataforma em território nacional. São suboperadores: <strong>Oracle (OCI)</strong>, para hospedagem (Brasil), e <strong>Resend</strong>, para envio de e-mail transacional (verificação de cadastro e redefinição de senha), que o processa <strong>fora do Brasil</strong> — uma transferência internacional limitada ao e-mail da conta, detalhada na <a href="/legal/privacidade.html">Política de Privacidade</a>.</p>
+
+<h2>6. Natureza beta e gratuidade; fornecimento "no estado em que se encontra"</h2>
+<p>O serviço gerenciado é fornecido atualmente em <strong>beta e de forma gratuita</strong>, podendo ser modificado, limitado ou descontinuado a qualquer tempo. No espírito da licença Apache-2.0, o serviço é fornecido <strong>"no estado em que se encontra" e "conforme disponível", sem garantias de qualquer natureza</strong>, expressas ou implícitas, incluindo, sem limitação, garantias de adequação a um propósito específico, de não violação ou de funcionamento ininterrupto e livre de erros.</p>
+<p>O Zelo é uma ferramenta de apoio à conformidade e <strong>não constitui aconselhamento jurídico</strong>. A responsabilidade pela conformidade do seu tratamento de dados com a LGPD permanece sua.</p>
+
+<h2>7. Disponibilidade e SLA</h2>
+<p>Nesta versão v1/beta, <strong>não há acordo de nível de serviço (SLA)</strong>. A disponibilidade é oferecida em regime de <strong>melhor esforço</strong>, e o serviço pode sofrer interrupções para manutenção, atualização ou por fatores fora do controle do Zelo.</p>
+
+<h2>8. Limitação de responsabilidade</h2>
+<p>Na máxima extensão permitida pela lei aplicável, o Zelo e seu mantenedor <strong>não serão responsáveis</strong> por danos indiretos, incidentais, especiais, consequenciais ou lucros cessantes decorrentes do uso ou da impossibilidade de uso do serviço gerenciado. Considerando a natureza beta e gratuita, a responsabilidade do Zelo limita-se, na medida permitida pela legislação aplicável, ao reparo do serviço por melhor esforço. Esta limitação não afasta responsabilidades que não possam ser legalmente excluídas, inclusive aquelas decorrentes do Código de Defesa do Consumidor, quando incidente.</p>
+
+<h2>9. Suspensão e rescisão</h2>
+<p>O Zelo pode <strong>suspender ou encerrar</strong> o acesso de uma conta que viole estes Termos, comprometa a segurança ou a estabilidade do serviço, ou utilize o serviço de forma ilícita. Você pode encerrar o uso a qualquer momento, deixando de utilizar o serviço e revogando suas chaves de API. Encerrada a conta, os dados de conta serão tratados conforme a Política de Privacidade.</p>
+
+<h2>10. Alterações destes Termos</h2>
+<p>Estes Termos podem ser atualizados periodicamente. A data de última atualização indica a versão vigente. Alterações relevantes poderão ser comunicadas pelos canais disponíveis. O uso continuado do serviço após a vigência das alterações implica concordância com a versão atualizada.</p>
+
+<h2>11. Lei aplicável e foro</h2>
+<p>Estes Termos são regidos pelas leis da <strong>República Federativa do Brasil</strong>. Fica eleito o foro brasileiro para dirimir quaisquer controvérsias decorrentes destes Termos, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
+
+<h2>12. Contato</h2>
+<p>O Zelo é mantido por <strong>Thiago Rodrigues Carvalho</strong> (pessoa física, projeto independente). Dúvidas sobre estes Termos, privacidade ou o exercício de direitos, bem como o contato com o Encarregado (DPO), podem ser direcionados a <code>privacidade@zelocompliance.com</code>.</p>
+
+<div class="note"><strong>Auto-hospedagem (self-host).</strong> A modalidade auto-hospedada do núcleo do Zelo é regida <strong>exclusivamente pela licença Apache-2.0</strong> e não por estes Termos. Ao auto-hospedar, <strong>você é o próprio operador da sua instância</strong>: assume integralmente a responsabilidade pela implantação, segurança, disponibilidade e conformidade, e os papéis sob a LGPD são definidos pelo seu próprio uso. O mantenedor do Zelo não opera nem tem acesso à sua instância auto-hospedada.</div>
+</main>
+<footer>
+  <div class="wrap">
+    <a class="wordmark" href="/" style="font-size:16px;"><svg class="zmark" width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg> Zelo</a>
+    <span>Open source · Apache-2.0</span>
+    <a href="/legal/termos.html">Termos</a>
+    <a href="/legal/privacidade.html">Privacidade</a>
+    <a href="/legal/dpa.html">Operador (DPA)</a>
+    <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">GitHub</a>
+  </div>
+  <p class="disclaimer wrap">Zelo está em versão v1 (beta); estes documentos podem ser atualizados. Dúvidas ou solicitações: <a href="mailto:privacidade@zelocompliance.com">privacidade@zelocompliance.com</a>.</p>
+</footer>
+</body>
+</html>

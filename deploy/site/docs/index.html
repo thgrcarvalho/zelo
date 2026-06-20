@@ -321,11 +321,16 @@
             <strong>Add the dependency</strong> (you also supply Spring Web yourself):
             <div class="code-card cb">
               <div class="code-head"><span class="traffic"><i></i><i></i><i></i></span><span class="code-title">build.gradle</span></div>
-<pre><code><span class="tok-key">dependencies</span> {
+<pre><code><span class="tok-key">repositories</span> {
+    mavenLocal()       <span class="tok-com">// until the starter is on Maven Central</span>
+    mavenCentral()
+}
+<span class="tok-key">dependencies</span> {
     implementation <span class="tok-str">'io.github.thgrcarvalho:zelo-spring-boot-starter:0.1.0'</span>
     implementation <span class="tok-str">'org.springframework.boot:spring-boot-starter-web'</span> <span class="tok-com">// required by you</span>
 }</code></pre>
             </div>
+            <p style="color:var(--muted);font-size:14px;margin:8px 0 0;">Not on Maven Central yet: in the Zelo repo run <code>./gradlew :zelo-spring-boot-starter:publishToMavenLocal</code>, then add <code>mavenLocal()</code> to your <code>repositories { }</code> until it's published.</p>
           </li>
           <li>
             <strong>Configure it</strong> (<code>application.yml</code> or <code>application.properties</code>):
@@ -631,6 +636,9 @@ Authorization: Bearer zk_live_8f1d6c2e...   <span class="tok-com"># "Bearer " pr
       <span>Open source · Apache-2.0</span>
       <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">github.com/thgrcarvalho/zelo</a>
       <a href="/">Home</a>
+      <a href="/legal/termos.html">Terms</a>
+      <a href="/legal/privacidade.html">Privacy</a>
+      <a href="/legal/dpa.html">DPA</a>
     </div>
     <p class="foot-note">Zelo is a control plane that stores zero end-user PII.</p>
   </div>

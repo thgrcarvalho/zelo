@@ -100,10 +100,13 @@ dashboard signup or the `/admin` API) so no `demo` tenant is created.
 
 **Migrating an existing box** that previously set these: remove the legacy
 `ZELO_DEMO_API_KEY` and `ZELO_DEMO_WEBHOOK_SECRET` from `~/zelo/.env`, then
-`docker compose up -d --build --remove-orphans` (the `--remove-orphans` stops the
-now-opt-in `zelo-demo` container left running from the old config). Optionally revoke
-the pre-existing `demo` key: `curl -X DELETE localhost:8080/admin/api-keys/<id> -H
-"Authorization: $ZELO_ADMIN_MASTER_KEY"`. Vitalio's separately-minted key is untouched.
+`docker compose up -d --build`. A `zelo-demo` container left running from the old
+config is **not** removed by `--remove-orphans` (a profile-gated service isn't an
+orphan) — stop it explicitly: `docker rm -f zelo-zelo-demo-1` (or
+`docker compose --profile demo rm -sf zelo-demo`). Optionally revoke the pre-existing
+`demo` key in Postgres: `docker compose exec -T postgres psql -U zelo -d zelo -c
+"UPDATE api_keys SET revoked_at=now() WHERE name='demo' AND revoked_at IS NULL;"`.
+Vitalio's separately-minted key is untouched.
 
 ## 4. Publish the static site (landing + dashboard + docs + assets)
 

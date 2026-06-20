@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adendo de Tratamento de Dados (DPA) — Zelo</title>
+<meta name="description" content="Adendo de Operador (DPA) entre o integrador (Controlador) e o Zelo (Operador), sob a LGPD.">
+<link rel="canonical" href="https://zelocompliance.com/legal/dpa.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0B0A12">
+<link rel="stylesheet" href="/legal/legal.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="wordmark" href="/"><svg class="zmark" width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg> Zelo</a>
+    <nav><a href="/">Início</a><a href="/docs/">Docs</a></nav>
+  </div>
+</header>
+<main class="wrap">
+<h1>Adendo de Tratamento de Dados (DPA)</h1>
+<p class="lede">Termos que regem o tratamento de dados pessoais realizado pelo Zelo, na qualidade de operador, por conta e sob instruções do integrador, na qualidade de controlador.</p>
+<p class="updated">Última atualização: 20 de junho de 2026</p>
+
+<p>Este Adendo de Tratamento de Dados ("Adendo" ou "DPA") integra e complementa os Termos de Serviço celebrados entre você ou a organização que você representa ("Integrador" ou "Controlador") e o Zelo, toolkit open-source de conformidade com a LGPD mantido por Thiago Rodrigues Carvalho (pessoa física, projeto independente), responsável pelo serviço gerenciado disponível em <code>zelocompliance.com</code> e <code>api.zelocompliance.com</code> ("Zelo" ou "Operador"). Este Adendo aplica-se ao tratamento de dados pessoais decorrente do uso do serviço gerenciado pelo Integrador para orquestrar suas operações de conformidade. Em caso de conflito entre este Adendo e os Termos de Serviço quanto à matéria de proteção de dados, prevalece este Adendo.</p>
+
+<h2>1. Definições</h2>
+<p>Os termos abaixo seguem o disposto na Lei nº 13.709/2018 (LGPD), em especial o Art. 5º:</p>
+<ul>
+<li><strong>Dado pessoal:</strong> informação relacionada a pessoa natural identificada ou identificável.</li>
+<li><strong>Titular:</strong> a pessoa natural a quem se referem os dados pessoais objeto de tratamento — no contexto deste Adendo, os usuários finais do Integrador.</li>
+<li><strong>Controlador:</strong> a quem competem as decisões referentes ao tratamento de dados pessoais — aqui, o Integrador.</li>
+<li><strong>Operador:</strong> quem realiza o tratamento de dados pessoais em nome do controlador — aqui, o Zelo.</li>
+<li><strong>Suboperador:</strong> terceiro contratado pelo Operador para auxiliar na prestação do serviço e que possa, nesse contexto, tratar dados em nome do Controlador.</li>
+<li><strong>Encarregado (DPO):</strong> pessoa indicada para atuar como canal de comunicação entre controlador, titulares e a ANPD. O Encarregado do Zelo pode ser contatado em <code>privacidade@zelocompliance.com</code>.</li>
+</ul>
+
+<h2>2. Objeto e escopo do tratamento</h2>
+<p>O Zelo é um <strong>plano de controle de conformidade que não armazena dados pessoais dos titulares do Integrador</strong>. Os dados pessoais reais dos usuários finais permanecem, integralmente, no banco de dados do próprio Integrador. No exercício de suas funções como Operador, o Zelo trata exclusivamente:</p>
+<ul>
+<li>um <strong>external_id opaco</strong> — identificador definido pelo aplicativo do Integrador, sem significado intrínseco para o Zelo;</li>
+<li><strong>registros de consentimento</strong> (metadados de concessão e revogação);</li>
+<li><strong>estado de solicitações de titular (DSR)</strong> — o ciclo de vida das solicitações de direitos; e</li>
+<li>a <strong>trilha de auditoria encadeada por hash</strong> (tamper-evident).</li>
+</ul>
+<p>O Zelo orquestra operações de conformidade (por exemplo, exclusão de dados) acionando o ambiente do Integrador por meio de <strong>webhooks assinados (HMAC-SHA256)</strong>. A execução efetiva sobre os dados pessoais ocorre sempre no ambiente do Integrador. O Zelo <strong>não tem acesso ao conteúdo dos dados pessoais dos titulares</strong> e não os armazena.</p>
+
+<h3>2.1 Natureza, finalidade e duração</h3>
+<p>O tratamento tem por finalidade exclusiva permitir ao Integrador registrar consentimentos, gerir solicitações de titulares e manter trilha de auditoria verificável, em apoio ao cumprimento de suas obrigações sob a LGPD. A duração do tratamento corresponde à vigência da relação contratual, ressalvado o disposto na cláusula de eliminação.</p>
+
+<h2>3. Instruções do controlador</h2>
+<p>O Zelo trata os dados acima descritos <strong>somente conforme as instruções documentadas do Integrador</strong>, as quais são expressas, primordialmente, pelo uso da API e do painel do serviço pelo Integrador, bem como pela configuração de sua conta. Cada chamada de API, registro de consentimento, abertura de solicitação de titular ou disparo de webhook constitui instrução do Controlador. O Zelo não tratará os dados para finalidades próprias diversas das necessárias à prestação do serviço. Caso o Zelo entenda que uma instrução viola a LGPD, comunicará o Integrador.</p>
+
+<h2>4. Obrigações do operador</h2>
+<ul>
+<li>tratar os dados apenas nos limites das instruções do Controlador e da prestação do serviço;</li>
+<li>garantir a <strong>confidencialidade</strong> dos dados, inclusive por parte de quaisquer pessoas autorizadas a tratá-los;</li>
+<li>adotar as medidas de segurança técnicas e administrativas descritas na cláusula 6;</li>
+<li>manter <strong>registro das operações de tratamento</strong> que realizar, na forma do Art. 37 da LGPD;</li>
+<li>auxiliar o Controlador no cumprimento de suas obrigações perante titulares e a ANPD, na medida da natureza do tratamento e das informações disponíveis ao Operador.</li>
+</ul>
+
+<h2>5. Suboperadores autorizados</h2>
+<p>O Integrador autoriza o Zelo a contratar os suboperadores abaixo, os quais estão sujeitos a obrigações de proteção de dados compatíveis com as deste Adendo:</p>
+<table>
+<tr><th>Suboperador</th><th>Finalidade</th><th>Localização do tratamento</th></tr>
+<tr><td>Oracle (Oracle Cloud Infrastructure — OCI)</td><td>Hospedagem e infraestrutura do serviço</td><td>Brasil — Brasil Sudeste (São Paulo, <code>sa-saopaulo-1</code>)</td></tr>
+<tr><td>Resend</td><td>Envio de e-mail transacional (verificação de conta e redefinição de senha)</td><td>Estados Unidos (fora do Brasil) — transferência internacional, art. 33 LGPD</td></tr>
+</table>
+<p>O processamento da plataforma ocorre em território nacional, na região de São Paulo da OCI. O envio de e-mail transacional pelo <strong>Resend</strong> ocorre fora do Brasil, configurando <strong>transferência internacional</strong> limitada ao endereço de e-mail da conta e fundamentada na execução do serviço (LGPD, Art. 33). O Zelo informará o Integrador sobre qualquer pretensão de <strong>inclusão ou substituição de suboperador</strong> com antecedência razoável, facultando ao Integrador opor-se por motivo legítimo relacionado à proteção de dados.</p>
+
+<h2>6. Segurança da informação</h2>
+<p>O Zelo adota medidas técnicas e administrativas aptas a proteger os dados tratados contra acessos não autorizados e situações acidentais ou ilícitas de destruição, perda, alteração, comunicação ou difusão, incluindo:</p>
+<ul>
+<li><strong>criptografia em trânsito (TLS)</strong> em todas as comunicações com a API e o painel;</li>
+<li>armazenamento de senhas de conta apenas como <strong>hash (PBKDF2-SHA256)</strong>, nunca em texto claro;</li>
+<li><strong>trilha de auditoria encadeada por hash</strong> (tamper-evident), que torna detectável qualquer adulteração de registros;</li>
+<li>assinatura de webhooks com <strong>HMAC-SHA256</strong>, garantindo autenticidade e integridade das instruções de orquestração;</li>
+<li><strong>isolamento por chave de API e por tenant</strong>, de modo que os registros de um Integrador não sejam acessíveis a outro.</li>
+</ul>
+
+<h2>7. Incidentes de segurança</h2>
+<p>Ao tomar conhecimento de incidente de segurança que possa acarretar risco ou dano relevante aos titulares e que envolva os dados tratados sob este Adendo, o Zelo comunicará o Integrador <strong>sem demora injustificada</strong>, fornecendo as informações disponíveis sobre a natureza do incidente, os dados afetados e as medidas adotadas ou recomendadas. Essa comunicação destina-se a apoiar o Controlador no cumprimento de seu dever de comunicação à ANPD e aos titulares previsto no Art. 48 da LGPD. Como o Zelo não armazena os dados pessoais dos titulares, a avaliação de impacto sobre tais dados cabe primariamente ao Integrador.</p>
+
+<h2>8. Direitos dos titulares</h2>
+<p>Considerando que os dados pessoais dos titulares residem no ambiente do Integrador, cabe a este atender diretamente às solicitações de exercício de direitos (Art. 18 da LGPD). O Zelo <strong>auxilia o Controlador</strong> nesse atendimento, disponibilizando o estado das solicitações (DSR), os registros de consentimento e a trilha de auditoria correspondentes, bem como a orquestração de operações (como exclusão) via webhooks assinados. Solicitações de titulares recebidas diretamente pelo Zelo serão, quando possível, redirecionadas ao Integrador.</p>
+
+<h2>9. Devolução e eliminação dos dados</h2>
+<p>Encerrada a prestação do serviço, o Zelo, por instrução do Integrador, <strong>eliminará ou devolverá</strong> os dados tratados sob este Adendo (external_id opaco, metadados de consentimento e de solicitações e trilha de auditoria), salvo quando a conservação for exigida por obrigação legal ou regulatória, nos termos do Art. 16 da LGPD. O Integrador pode exportar seus registros enquanto a conta permanecer ativa.</p>
+
+<h2>10. Auditoria</h2>
+<p>O Zelo disponibilizará ao Integrador as informações razoavelmente necessárias para demonstrar o cumprimento deste Adendo. Por ser um toolkit <strong>open-source</strong> (núcleo licenciado sob Apache-2.0 e auto-hospedável), o Integrador pode inspecionar o código-fonte do plano de controle. A trilha de auditoria encadeada por hash permite verificação independente da integridade dos registros. Solicitações adicionais de auditoria podem ser encaminhadas a <code>privacidade@zelocompliance.com</code>.</p>
+
+<h2>11. Vigência e relação com os Termos</h2>
+<p>Este Adendo vigora enquanto perdurar a relação contratual entre as partes e enquanto o Zelo tratar dados em nome do Integrador. Os termos não definidos aqui seguem os Termos de Serviço. Este Adendo é regido pela legislação brasileira, elegendo-se o foro do Brasil para dirimir controvérsias. Durante a fase beta, o serviço gerenciado é oferecido <strong>gratuitamente</strong>.</p>
+
+<div class="note"><strong>Ressalva — dados da conta do desenvolvedor.</strong> Este Adendo cobre apenas o tratamento das operações de conformidade do Integrador, no qual o Zelo atua como <strong>Operador</strong>. Os <strong>dados da conta do desenvolvedor-integrador</strong> — e-mail, nome da organização, hash de senha (PBKDF2-SHA256) e logs técnicos (como endereço IP e carimbos de data/hora) — são tratados pelo Zelo na qualidade de <strong>Controlador</strong>, para fins de operação, autenticação e segurança do serviço gerenciado. Esse tratamento é regido pela <strong>Política de Privacidade</strong> do Zelo, e não por este Adendo.</div>
+</main>
+<footer>
+  <div class="wrap">
+    <a class="wordmark" href="/" style="font-size:16px;"><svg class="zmark" width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true"><line class="rail" x1="6.7" y1="8" x2="25.3" y2="8" stroke-width="6.6" stroke-linecap="round"/><line x1="25.3" y1="8" x2="6.7" y2="24" stroke="#8B6CFF" stroke-width="6.6" stroke-linecap="round"/><line class="rail" x1="6.7" y1="24" x2="25.3" y2="24" stroke-width="6.6" stroke-linecap="round"/></svg> Zelo</a>
+    <span>Open source · Apache-2.0</span>
+    <a href="/legal/termos.html">Termos</a>
+    <a href="/legal/privacidade.html">Privacidade</a>
+    <a href="/legal/dpa.html">Operador (DPA)</a>
+    <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">GitHub</a>
+  </div>
+  <p class="disclaimer wrap">Zelo está em versão v1 (beta); estes documentos podem ser atualizados. Dúvidas ou solicitações: <a href="mailto:privacidade@zelocompliance.com">privacidade@zelocompliance.com</a>.</p>
+</footer>
+</body>
+</html>
