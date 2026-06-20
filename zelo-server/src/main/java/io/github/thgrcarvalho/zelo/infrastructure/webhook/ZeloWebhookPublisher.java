@@ -66,11 +66,14 @@ public class ZeloWebhookPublisher implements OutboxPublisher {
             return;
         }
         if (target.secret() == null || target.secret().isBlank()) {
-            // Fail closed: never send an unsigned (empty-key) webhook. Dropping the
-            // event lets the request go OVERDUE, surfacing the misconfiguration.
-            log.error("Integrator {} has a webhook URL but no signing secret; refusing to send {}",
-                    apiKeyId, event.eventType());
-            return;
+            // A URL with no signing secret is a fixable misconfiguration (the integrator
+            // clearly intends to receive webhooks). Never send an unsigned webhook — but
+            // throw rather than return: returning would mark the event PUBLISHED while it
+            // was never delivered, hiding the problem. Throwing keeps it PENDING (retried)
+            // and ultimately dead-letters it as FAILED with last_error, which the
+            // OutboxHealthJob surfaces to the operator.
+            throw new IllegalStateException("Integrator " + apiKeyId
+                    + " has a webhook URL but no signing secret; refusing to send " + event.eventType());
         }
 
         // Stamp the (signed) body with the event type and a per-send timestamp: the

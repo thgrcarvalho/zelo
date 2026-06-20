@@ -5,6 +5,7 @@ import io.github.thgrcarvalho.zelo.application.email.EmailSender;
 import io.github.thgrcarvalho.zelo.application.error.BadRequestException;
 import io.github.thgrcarvalho.zelo.application.error.ResourceNotFoundException;
 import io.github.thgrcarvalho.zelo.application.error.ServiceUnavailableException;
+import io.github.thgrcarvalho.zelo.application.error.TooManyRequestsException;
 import io.github.thgrcarvalho.zelo.application.error.UnauthorizedException;
 import io.github.thgrcarvalho.zelo.domain.account.Account;
 import io.github.thgrcarvalho.zelo.domain.account.AccountRepository;
@@ -65,6 +66,7 @@ public class AccountService {
     private final EmailSender emailSender;
     private final ApplicationEventPublisher events;
     private final ZeloProperties.Mail mail;
+    private final ZeloProperties.Auth auth;
 
     public AccountService(AccountRepository accounts, AccountTokenRepository tokens,
                           EmailSender emailSender, ApplicationEventPublisher events,
@@ -74,6 +76,7 @@ public class AccountService {
         this.emailSender = emailSender;
         this.events = events;
         this.mail = properties.getMail();
+        this.auth = properties.getAuth();
     }
 
     /**
@@ -131,18 +134,37 @@ public class AccountService {
     }
 
     /**
-     * Verify credentials and return the account, or throw a generic 401. The same
-     * error covers an unknown email and a wrong password (no enumeration); a dummy
-     * hash is verified for unknown emails to equalize timing. Works for UNVERIFIED
-     * accounts too — they get an inert session (the controller gates capabilities).
+     * Verify credentials and return the account, or throw a generic 401. The same error
+     * covers an unknown email and a wrong password (no enumeration); a dummy hash is
+     * verified for unknown emails to equalize timing. Works for UNVERIFIED accounts too —
+     * they get an inert session (the controller gates capabilities).
+     *
+     * <p>Brute-force backstop: each failure atomically increments the account's counter
+     * and, once it crosses {@code login-max-failures}, locks the account for
+     * {@code login-lockout-minutes} (a {@code 429}); a successful login (or a password
+     * reset) clears it. The increment is a native UPDATE marked {@code noRollbackFor} so
+     * it survives the thrown 401, and the lock is per-account (not per-IP) so it also
+     * defends against distributed attempts on one victim. A locked-out user can still
+     * recover via password reset.</p>
      */
-    @Transactional(readOnly = true)
+    @Transactional(noRollbackFor = {UnauthorizedException.class, TooManyRequestsException.class})
     public Account authenticate(String email, String rawPassword) {
+        Instant now = Instant.now();
         Account account = accounts.findByEmail(normalizeEmail(email)).orElse(null);
+        if (account != null && account.isLocked(now)) {
+            throw new TooManyRequestsException("Too many failed attempts; this account is temporarily locked");
+        }
         String hashToCheck = (account == null) ? ABSENT_ACCOUNT_HASH : account.getPasswordHash();
         boolean ok = Passwords.verify(rawPassword, hashToCheck);
         if (account == null || !ok) {
+            if (account != null) {
+                accounts.recordFailedLogin(account.getId(), auth.getLoginMaxFailures(),
+                        now.plus(Duration.ofMinutes(auth.getLoginLockoutMinutes())));
+            }
             throw new UnauthorizedException("Invalid email or password");
+        }
+        if (account.getFailedLoginCount() > 0) {
+            accounts.clearFailedLogins(account.getId());
         }
         return account;
     }
@@ -215,6 +237,7 @@ public class AccountService {
         Account account = require(token.getAccountId());
         account.changePassword(Passwords.hash(newPassword), now);
         accounts.save(account);
+        accounts.clearFailedLogins(account.getId());
         log.info("Password reset completed for account {} — sessions invalidated", account.getId());
     }
 

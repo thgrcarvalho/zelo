@@ -65,6 +65,14 @@ public class Account {
     @Column(name = "password_changed_at", nullable = false)
     private Instant passwordChangedAt;
 
+    /** Consecutive failed logins; reset on a successful login or a password reset. Maintained via direct UPDATE. */
+    @Column(name = "failed_login_count", nullable = false)
+    private int failedLoginCount;
+
+    /** When set and in the future, logins are rejected (429) regardless of the password supplied. */
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
     protected Account() {
         // for JPA
     }
@@ -149,5 +157,14 @@ public class Account {
 
     public boolean isVerified() {
         return emailVerifiedAt != null;
+    }
+
+    public int getFailedLoginCount() {
+        return failedLoginCount;
+    }
+
+    /** True while a brute-force lockout is in effect. */
+    public boolean isLocked(Instant now) {
+        return lockedUntil != null && lockedUntil.isAfter(now);
     }
 }
