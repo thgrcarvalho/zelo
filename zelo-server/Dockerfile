@@ -17,7 +17,10 @@ WORKDIR /app
 COPY --from=build /workspace/zelo-server/build/libs/zelo-server-*.jar app.jar
 USER zelo
 EXPOSE 8080
-# Long-running JVM hygiene for the always-on box (SaaS playbook): the default
-# 128m metaspace OOMs over days; fail fast on OOM.
-ENV JAVA_TOOL_OPTIONS="-XX:MaxMetaspaceSize=320m -XX:+ExitOnOutOfMemoryError"
+# Long-running JVM hygiene for the always-on box (SaaS playbook): bound heap +
+# metaspace so the footprint is predictable and a Java OOM fails fast (clean restart)
+# instead of leaking over days. The compose mem_limit is sized ABOVE this cap so the
+# cgroup OOM-killer (a SIGKILL that bypasses ExitOnOutOfMemoryError) isn't what stops
+# it; the default 128m metaspace OOMs over days.
+ENV JAVA_TOOL_OPTIONS="-Xmx512m -XX:MaxMetaspaceSize=320m -XX:+ExitOnOutOfMemoryError"
 ENTRYPOINT ["java", "-jar", "app.jar"]

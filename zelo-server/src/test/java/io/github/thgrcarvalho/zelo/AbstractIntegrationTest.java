@@ -1,5 +1,8 @@
 package io.github.thgrcarvalho.zelo;
 
+import io.github.thgrcarvalho.ratelimit.internal.InMemoryRateLimitStore;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -16,6 +19,21 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public abstract class AbstractIntegrationTest {
 
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+
+    // The dogfooded rate limiter is a HandlerInterceptor, so it fires under MockMvc too.
+    // Integration tests hammer endpoints from one loopback IP and would otherwise trip
+    // per-IP limits (e.g. /account/signup at 10/min once cumulative calls cross it).
+    // Reset the in-memory buckets before each test so methods stay isolated while the
+    // limiter still runs exactly as in prod (a misconfigured @RateLimit still fails here).
+    @Autowired(required = false)
+    private InMemoryRateLimitStore rateLimitStore;
+
+    @BeforeEach
+    void resetRateLimiter() {
+        if (rateLimitStore != null) {
+            rateLimitStore.clear();
+        }
+    }
 
     static {
         if (Boolean.getBoolean("runIntegrationTests")) {

@@ -66,6 +66,16 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    mail:
+      # Mail is async + fail-closed at signup, not a liveness signal: an unreachable
+      # or unconfigured SMTP relay must NOT drag /actuator/health (and the container
+      # healthcheck) to DOWN. Without this a bare `docker compose up` or the demo
+      # profile (no SMTP password) stays perpetually "unhealthy", so the compose
+      # `depends_on: service_healthy` never starts dependents — and in prod a Resend
+      # outage would needlessly mark the whole control plane down. It also avoids an
+      # SMTP auth round-trip on every health poll.
+      enabled: false
 
 zelo:
   dsr:

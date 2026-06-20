@@ -1,5 +1,6 @@
 package io.github.thgrcarvalho.zelo.infrastructure.web;
 
+import io.github.thgrcarvalho.ratelimit.RateLimit;
 import io.github.thgrcarvalho.zelo.application.AccountService;
 import io.github.thgrcarvalho.zelo.application.ApiKeyProvisioningService;
 import io.github.thgrcarvalho.zelo.application.error.ForbiddenException;
@@ -70,6 +71,11 @@ public class AccountController {
      */
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.ACCEPTED)
+    // In-app per-IP backstop so abuse protection travels with the app even when
+    // self-hosted without the nginx limit_req in front (which guards the hosted
+    // tier). Caps signup-driven verification email so it can't be used to flood an
+    // arbitrary address or burn the mail-provider quota (mail is fail-closed).
+    @RateLimit(requests = 10, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
     public Ack signup(@Valid @RequestBody SignupRequest request) {
         requireAuthEnabled();
         accounts.signup(request.email(), request.password(), request.orgName());

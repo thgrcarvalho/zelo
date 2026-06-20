@@ -60,9 +60,13 @@ zelo.webhook-tolerance-seconds=300
 
 You need a running Zelo control plane and an API key provisioned for your app, whose
 webhook target points back at `https://<your-app>/zelo/webhooks`. For local
-development, run Zelo from this repo (`docker compose up`) with the bootstrap env
-pointing at your app's webhook URL; in production that provisioning lives wherever
-you deploy Zelo.
+development, run the Zelo control plane from this repo (`docker compose up`) and set
+the bootstrap env — `ZELO_BOOTSTRAP_API_KEY` (your key), `ZELO_BOOTSTRAP_WEBHOOK_URL`
+(your app's webhook URL), and `ZELO_BOOTSTRAP_WEBHOOK_SECRET` (the signing secret; it
+must equal the `zelo.webhook-secret` your app validates with, above) — to seed it. All
+three are required: a key seeded without a secret fails closed and never sends the
+deletion webhook. In production that provisioning lives wherever you deploy Zelo (the
+dashboard signup or the admin API).
 
 The client carries its **own `snake_case` JSON mapper**, so it works regardless of
 your app's Jackson naming strategy — Vitalio's default `camelCase` is fine, nothing

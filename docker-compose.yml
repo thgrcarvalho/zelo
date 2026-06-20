@@ -1,17 +1,26 @@
-# Self-host the whole Zelo stack: Postgres + the control plane + the demo
-# integrator, wired together so the DELETE loop works out of the box.
+# Self-host the Zelo control plane: Postgres + the REST API.
 #
-#   docker compose up --build
+#   docker compose up -d --build      # run Zelo (control plane only)
+#
+# Then mint an API key by signing up at /account/signup (instant, email-verified),
+# or set ZELO_ADMIN_MASTER_KEY and provision one via the /admin API. The control
+# plane seeds NO key by default — a public deployment must never ship a guessable
+# credential (set ZELO_DEMO_API_KEY only for the local demo profile below).
+#
+# Try the full DELETE loop locally with the bundled demo integrator. The demo key
+# is an insecure, well-known local default — never expose the demo profile or its
+# ports publicly:
+#
+#   ZELO_DEMO_API_KEY=demo-key ZELO_DEMO_WEBHOOK_SECRET=demo-secret docker compose --profile demo up -d --build
 #   curl -XPOST localhost:8081/users -H 'content-type: application/json' \
 #        -d '{"external_id":"alice","name":"Alice","email":"alice@example.com"}'
 #   curl -XPOST localhost:8081/users/alice/request-deletion
-#   curl localhost:8081/users/alice                 # -> 404, erased
-#   curl localhost:8080/v1/audit/verify -H 'Authorization: demo-key'   # -> {"ok":true,...}
-#
-# The demo api-key/webhook-secret below are insecure defaults for local use only.
+#   curl localhost:8081/users/alice                                  # -> 404, erased
+#   curl localhost:8080/v1/audit/verify -H "Authorization: $ZELO_DEMO_API_KEY"
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: zelo
       POSTGRES_USER: zelo
@@ -23,11 +32,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
 
   zelo-server:
     build:
       context: .
       dockerfile: zelo-server/Dockerfile
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,20 +48,22 @@ services:
       ZELO_DB_URL: jdbc:postgresql://postgres:5432/zelo
       ZELO_DB_USER: zelo
       ZELO_DB_PASSWORD: ${POSTGRES_PASSWORD:-zelo}
-      # Provision the demo integrator's API key + webhook target on startup.
-      ZELO_BOOTSTRAP_API_KEY: ${ZELO_DEMO_API_KEY:-demo-key}
-      ZELO_BOOTSTRAP_NAME: demo
-      ZELO_BOOTSTRAP_WEBHOOK_URL: http://zelo-demo:8081/zelo/webhooks
-      ZELO_BOOTSTRAP_WEBHOOK_SECRET: ${ZELO_DEMO_WEBHOOK_SECRET:-demo-secret}
+      # Optional bootstrap tenant. BLANK by default -> no seeded key (fail-safe);
+      # a public deployment must never auto-create a guessable credential. Set
+      # ZELO_DEMO_API_KEY (e.g. for the local `demo` profile) to seed one.
+      ZELO_BOOTSTRAP_API_KEY: ${ZELO_DEMO_API_KEY:-}
+      ZELO_BOOTSTRAP_NAME: ${ZELO_BOOTSTRAP_NAME:-demo}
+      ZELO_BOOTSTRAP_WEBHOOK_URL: ${ZELO_BOOTSTRAP_WEBHOOK_URL:-http://zelo-demo:8081/zelo/webhooks}
+      ZELO_BOOTSTRAP_WEBHOOK_SECRET: ${ZELO_DEMO_WEBHOOK_SECRET:-}
       # Master key for the runtime key-provisioning API (/admin/**). Blank by
-      # default → admin API disabled (fail-closed). Set ZELO_ADMIN_MASTER_KEY to
+      # default -> admin API disabled (fail-closed). Set ZELO_ADMIN_MASTER_KEY to
       # onboard clients at runtime without a redeploy.
       ZELO_ADMIN_MASTER_KEY: ${ZELO_ADMIN_MASTER_KEY:-}
       # Self-service account dashboard (/account/**). ZELO_AUTH_SECRET signs
-      # session cookies; blank → /account disabled (fail-closed). Set in prod (.env).
+      # session cookies; blank -> /account disabled (fail-closed). Set in prod (.env).
       ZELO_AUTH_SECRET: ${ZELO_AUTH_SECRET:-}
       # Transactional email for instant onboarding (verification + password reset).
-      # ZELO_MAIL_ENABLED=false → logging no-op sender; with require-verification on
+      # ZELO_MAIL_ENABLED=false -> logging no-op sender; with require-verification on
       # (default) signup then fails closed (503) rather than activate unverified.
       # In prod set ENABLED=true, FROM, BASE_URL, and the Resend API key as SMTP pass.
       ZELO_MAIL_ENABLED: ${ZELO_MAIL_ENABLED:-false}
@@ -60,28 +75,47 @@ services:
       ZELO_SMTP_USERNAME: ${ZELO_SMTP_USERNAME:-resend}
       ZELO_SMTP_PASSWORD: ${ZELO_SMTP_PASSWORD:-}
       ZELO_OUTBOX_POLL_MS: "1000"
+    # Bind to loopback only: on a host the API is reached via nginx (-> 127.0.0.1:8080),
+    # never directly on the public interface. Self-hosters without a proxy still reach
+    # it on localhost. Publish it deliberately if you need direct external access.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    # 832m JVM hard cap (heap 512m + metaspace 320m) + Tomcat stacks/JIT/direct
+    # buffers (~native). 1500m leaves real headroom so RSS can't hit the cgroup
+    # limit (a cgroup OOM is a SIGKILL that bypasses -XX:+ExitOnOutOfMemoryError).
+    mem_limit: ${ZELO_SERVER_MEM_LIMIT:-1500m}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health | grep -q UP || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 30
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
 
+  # Bundled sample integrator. Opt-in via `--profile demo` so it never runs in a
+  # real deployment: it holds demo PII and authenticates with the insecure,
+  # well-known demo key. Ports bind to loopback only.
   zelo-demo:
+    profiles: ["demo"]
     build:
       context: .
       dockerfile: zelo-demo/Dockerfile
+    restart: unless-stopped
     depends_on:
       zelo-server:
         condition: service_healthy
     environment:
       ZELO_API_URL: http://zelo-server:8080
-      ZELO_API_KEY: ${ZELO_DEMO_API_KEY:-demo-key}
+      ZELO_API_KEY: ${ZELO_DEMO_API_KEY:-}
       ZELO_WEBHOOK_SECRET: ${ZELO_DEMO_WEBHOOK_SECRET:-demo-secret}
       DEMO_PORT: "8081"
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
+    mem_limit: ${ZELO_DEMO_MEM_LIMIT:-512m}
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
 volumes:
   zelo-pgdata:

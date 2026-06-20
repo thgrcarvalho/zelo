@@ -20,11 +20,22 @@ gap is the wedge.
 
 ## Quickstart
 
-Self-host the whole stack — control plane, a demo integrator, and Postgres — and watch
-the deletion loop run end to end:
+**Hosted — nothing to run.** Sign up at **[zelocompliance.com/app](https://zelocompliance.com/app)**
+(instant, email-verified onboarding) and self-issue an API key.
+
+**Self-host the control plane** (Postgres + the REST API), then mint a key via the
+dashboard (`/account` signup) or the admin API — no key is seeded by default:
 
 ```bash
-docker compose up --build
+docker compose up -d --build
+```
+
+**Watch the deletion loop run end to end** with the bundled demo integrator. It's
+opt-in via the `demo` profile and authenticates with an insecure, well-known local
+key — never expose it publicly:
+
+```bash
+ZELO_DEMO_API_KEY=demo-key ZELO_DEMO_WEBHOOK_SECRET=demo-secret docker compose --profile demo up --build
 
 # 1. the demo app holds a user (this is the PII Zelo never sees)
 curl -XPOST localhost:8081/users -H 'content-type: application/json' \
