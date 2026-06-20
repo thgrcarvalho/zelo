@@ -81,6 +81,21 @@ class ConsentApiIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void publishesTheOpenApiSpecScopedToV1() throws Exception {
+        // Generating the spec exercises the full springdoc stack (the bean only wires at
+        // startup; a version incompatibility blows up here, at request time). It must be
+        // reachable without an API key, carry our metadata, and expose ONLY the public /v1
+        // surface — never the internal /account or /admin endpoints.
+        mvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.title").value("Zelo API"))
+                .andExpect(jsonPath("$.paths['/v1/consents']").exists())
+                .andExpect(jsonPath("$.paths['/account/me']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/account/login']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/admin/keys']").doesNotExist());
+    }
+
+    @Test
     void runsTheFullConsentFlowAndVerifies() throws Exception {
         mvc.perform(post("/v1/purposes").header(HttpHeaders.AUTHORIZATION, KEY)
                         .contentType(MediaType.APPLICATION_JSON)
