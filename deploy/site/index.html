@@ -219,7 +219,7 @@
       <a class="star-badge" href="https://github.com/thgrcarvalho/zelo" rel="noopener" aria-label="Star Zelo on GitHub">
         <span aria-hidden="true">★</span> GitHub
       </a>
-      <a class="pill" href="#waitlist">Join waitlist</a>
+      <a class="pill" href="/app/">Get your API key</a>
     </div>
   </div>
 </nav>
@@ -244,28 +244,14 @@
         </div>
       </div>
 
-      <!-- Email capture form (also reachable at #waitlist anchor below) -->
+      <!-- Start CTA: instant, email-verified self-serve onboarding -->
       <div class="form-card" aria-labelledby="hero-form-title">
-        <h2 id="hero-form-title">Want the managed tier?</h2>
-        <p class="helper">Self-host free under Apache-2.0 today. Leave your email for early access to hosted Zelo.</p>
-        <form id="waitlistFormHero" novalidate>
-          <div class="field-row">
-            <div>
-              <label for="email-hero">Work email</label>
-              <input type="email" id="email-hero" name="email" autocomplete="email" placeholder="you@yourstartup.com.br" aria-describedby="err-hero" required>
-              <p class="form-error" id="err-hero" role="alert"></p>
-            </div>
-          </div>
-          <div class="field-row">
-            <div>
-              <label for="company-hero">Company <span style="opacity:.6">(optional)</span></label>
-              <input type="text" id="company-hero" name="company" autocomplete="organization" placeholder="Your SaaS">
-            </div>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn" id="submit-hero">Join the waitlist</button>
-          </div>
-        </form>
+        <h2 id="hero-form-title">Start in two minutes</h2>
+        <p class="helper">Use the managed cloud or self-host free under Apache-2.0. Sign up, verify your email, and self-issue an API key — no sales call.</p>
+        <div class="form-actions">
+          <a class="btn" href="/app/">Create your account →</a>
+        </div>
+        <p class="helper" style="margin-top:16px;">Prefer to self-host? <code>docker compose up</code> and you're running. <a href="/docs/">Read the docs →</a></p>
       </div>
     </div>
 
@@ -509,32 +495,19 @@ GET https://api.zelocompliance.com/v1/audit/verify
 </section>
 
 <!-- CTA -->
-<section class="cta-section" id="waitlist">
+<section class="cta-section" id="start">
   <div class="wrap">
-    <h2>Self-host free today. Want the managed tier?</h2>
+    <h2>Self-host free, or use the managed cloud.</h2>
     <p class="lede">
-      Self-host now under Apache-2.0 — <span class="inline-code">docker compose up</span> and you're running. Leave your email for early access to hosted Zelo: a managed control plane with signed-webhook delivery, deadline monitoring, and the verifiable audit chain, run for you. No spam, just an invite when it's ready.
+      Self-host now under Apache-2.0 — <span class="inline-code">docker compose up</span> and you're running. Or skip the ops: the hosted control plane is live — signed-webhook delivery, deadline monitoring, and the verifiable audit chain, run for you. Sign up, verify your email, and self-issue a key.
     </p>
 
     <div class="form-card" aria-labelledby="cta-form-title" style="max-width:560px;">
-      <h2 id="cta-form-title" style="font-size:18px;">Get early access</h2>
-      <p class="helper">Early access to hosted Zelo.</p>
-      <form id="waitlistFormCta" novalidate>
-        <div class="field-row two">
-          <div>
-            <label for="email-cta">Work email</label>
-            <input type="email" id="email-cta" name="email" autocomplete="email" placeholder="you@yourstartup.com.br" aria-describedby="err-cta" required>
-          </div>
-          <div>
-            <label for="company-cta">Company <span style="opacity:.6">(optional)</span></label>
-            <input type="text" id="company-cta" name="company" autocomplete="organization" placeholder="Your SaaS">
-          </div>
-        </div>
-        <p class="form-error" id="err-cta" role="alert"></p>
-        <div class="form-actions">
-          <button type="submit" class="btn" id="submit-cta">Join the waitlist</button>
-        </div>
-      </form>
+      <h2 id="cta-form-title" style="font-size:18px;">Get your API key</h2>
+      <p class="helper">Instant, email-verified onboarding — free to start.</p>
+      <div class="form-actions">
+        <a class="btn" href="/app/">Create your account →</a>
+      </div>
     </div>
   </div>
 </section>
@@ -619,94 +592,6 @@ GET https://api.zelocompliance.com/v1/audit/verify
     proofText.textContent = 'audit/verify/demo — GET /v1/audit/verify/demo';
   }
 
-  /* ---------- Waitlist form ---------- */
-  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  function wireForm(formId, emailId, companyId, errId, submitId) {
-    var form = document.getElementById(formId);
-    if (!form) return;
-    var emailInput = document.getElementById(emailId);
-    var companyInput = document.getElementById(companyId);
-    var errEl = document.getElementById(errId);
-    var submitBtn = document.getElementById(submitId);
-    var busy = false;
-
-    function showError(msg) {
-      errEl.textContent = msg;
-      emailInput.setAttribute('aria-invalid', 'true');
-    }
-    function clearError() {
-      errEl.textContent = '';
-      emailInput.removeAttribute('aria-invalid');
-    }
-
-    emailInput.addEventListener('input', function () {
-      if (errEl.textContent) clearError();
-    });
-
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      if (busy) return;
-      clearError();
-
-      var email = (emailInput.value || '').trim();
-      var company = (companyInput && companyInput.value || '').trim();
-
-      if (!EMAIL_RE.test(email)) {
-        showError('Enter a valid email address.');
-        emailInput.focus();
-        return;
-      }
-
-      busy = true;
-      var originalLabel = submitBtn.textContent;
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>Joining…';
-
-      var payload = { email: email };
-      if (company) payload.company = company;
-
-      function fail() {
-        busy = false;
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalLabel;
-        showError('Something went wrong — please try again.');
-      }
-
-      if (typeof fetch !== 'function') { fail(); return; }
-
-      fetch('/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-        .then(function (res) {
-          if (res.status !== 200) throw new Error('http ' + res.status);
-          return res.json();
-        })
-        .then(function (data) {
-          if (!data || data.ok !== true) throw new Error('not ok');
-          // Success — replace form in place
-          var success = document.createElement('div');
-          success.className = 'form-success';
-          success.setAttribute('role', 'status');
-          success.setAttribute('aria-live', 'polite');
-          success.setAttribute('tabindex', '-1');
-          success.innerHTML =
-            '<span class="check-circle" aria-hidden="true">✓</span>' +
-            "<span>You're on the list — we'll be in touch.</span>";
-          form.replaceWith(success);
-          success.focus();
-        })
-        .catch(function () {
-          fail();
-          // keep entered email + company so the user can retry (values untouched)
-        });
-    });
-  }
-
-  wireForm('waitlistFormHero', 'email-hero', 'company-hero', 'err-hero', 'submit-hero');
-  wireForm('waitlistFormCta', 'email-cta', 'company-cta', 'err-cta', 'submit-cta');
 })();
 </script>
 </body>

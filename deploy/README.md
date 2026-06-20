@@ -92,18 +92,33 @@ cd ~/zelo && git fetch --depth 1 origin main && git reset --hard FETCH_HEAD
 docker compose up -d --build
 ```
 
+The bundled `zelo-demo` integrator is **opt-in** (compose `demo` profile), so a plain
+`docker compose up -d --build` runs the control plane only — prod never starts the
+demo PII app. The control plane also seeds **no** API key unless `ZELO_DEMO_API_KEY`
+is set: leave it **unset** in the prod `.env` (real tenants are minted via the
+dashboard signup or the `/admin` API) so no `demo` tenant is created.
+
+**Migrating an existing box** that previously set these: remove the legacy
+`ZELO_DEMO_API_KEY` and `ZELO_DEMO_WEBHOOK_SECRET` from `~/zelo/.env`, then
+`docker compose up -d --build --remove-orphans` (the `--remove-orphans` stops the
+now-opt-in `zelo-demo` container left running from the old config). Optionally revoke
+the pre-existing `demo` key: `curl -X DELETE localhost:8080/admin/api-keys/<id> -H
+"Authorization: $ZELO_ADMIN_MASTER_KEY"`. Vitalio's separately-minted key is untouched.
+
 ## 4. Publish the static site (landing + dashboard + docs + assets)
 
 `deploy/site/` mirrors the web root, so one `rsync` publishes everything. No `--delete`,
 so box-only files (`*.bak`, the waitlist store) stay untouched:
 
 ```sh
-rsync -az --rsync-path="sudo rsync" ~/zelo/deploy/site/ /var/www/zelocompliance/
+# On the box (both paths local — plain sudo, NOT --rsync-path, which is remote-only):
+sudo rsync -a ~/zelo/deploy/site/ /var/www/zelocompliance/
 sudo chown -R www-data:www-data /var/www/zelocompliance
 ```
 
-(From a workstation: `rsync -az --rsync-path="sudo rsync" -e "ssh -i <key>" \
-deploy/site/ <user>@<host>:/var/www/zelocompliance/`.)
+(From a workstation, over ssh: `rsync -az --rsync-path="sudo rsync" -e "ssh -i <key>" \
+deploy/site/ <user>@<host>:/var/www/zelocompliance/` — `--rsync-path` makes the
+*remote* rsync run under sudo, so it only applies to the ssh form.)
 
 `/`, `/app/`, and `/docs/` all resolve via the landing vhost's existing
 `try_files $uri $uri/` — no nginx change is needed *for the static pages*. The
@@ -148,6 +163,23 @@ redirect `www` → apex) so a login on one host isn't invisible on the other. Do
 a `Domain` attribute to widen the cookie. As defense-in-depth, a default/catch-all
 nginx `server` that rejects unmatched `Host` headers is recommended (the app already
 builds email links from the configured base URL, never the request `Host`).
+
+## 6. Back up Postgres (do not skip)
+
+The hash-chained audit trail, the consent ledger, and every account live in one
+Postgres volume on one box. Install the nightly dump + off-box upload + a **tested
+restore** before onboarding anyone — see **[`backup/README.md`](backup/README.md)**.
+One `docker compose down -v` or a lost host otherwise destroys every tenant's legal
+evidence, which is the one thing this product exists to make trustworthy.
+
+```sh
+sudo install -m 0755 deploy/backup/zelo-pg-backup.sh  /usr/local/bin/zelo-pg-backup.sh
+sudo install -m 0755 deploy/backup/zelo-pg-restore.sh /usr/local/bin/zelo-pg-restore.sh
+sudo install -m 0644 deploy/backup/zelo-backup.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now zelo-backup.timer
+sudo systemctl start zelo-backup.service                 # take one now
+/usr/local/bin/zelo-pg-restore.sh "$(ls -1t /var/backups/zelo/*.sql.gz | head -1)"  # drill
+```
 
 ## Verify
 

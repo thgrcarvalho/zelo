@@ -1,0 +1,15 @@
+[Unit]
+Description=Zelo Postgres backup (dump + off-box upload + prune)
+After=docker.service
+Wants=docker.service
+# Don't let a backup run wedge if Docker is mid-restart.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+# Runs as the box user that owns the compose stack + Docker socket access.
+User=ubuntu
+EnvironmentFile=-/etc/zelo-backup.env
+ExecStart=/usr/local/bin/zelo-pg-backup.sh
+# A backup must never hang forever holding a lock on the box.
+TimeoutStartSec=600

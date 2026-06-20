@@ -216,7 +216,7 @@
       <a href="/">Home</a>
       <a href="#api-reference">API reference</a>
       <a class="star-badge" href="https://github.com/thgrcarvalho/zelo" rel="noopener" aria-label="Zelo on GitHub"><span aria-hidden="true">★</span> GitHub</a>
-      <a class="pill" href="/#waitlist">Request access</a>
+      <a class="pill" href="/app/">Get your API key</a>
     </div>
   </div>
 </nav>
@@ -298,9 +298,9 @@
         <h2 id="get-a-key">Get an API key <a class="anchor" href="#get-a-key" aria-hidden="true">#</a></h2>
         <p>Every <code>/v1</code> call is authenticated by a per-tenant API key sent in the <code>Authorization</code> header. There are two ways to get one:</p>
         <h4>Hosted (zelocompliance.com)</h4>
-        <p>Use the managed service at <code>https://api.zelocompliance.com</code> — nothing to run. Access is currently invite-based: <a href="/#waitlist">request access</a> and we provision a key scoped to your account. Your data stays yours; the hosted plane still holds zero PII.</p>
+        <p>Use the managed service at <code>https://api.zelocompliance.com</code> — nothing to run. Onboarding is instant and email-verified: <a href="/app/">sign up</a>, click the link in the verification email, and self-issue a key scoped to your account. Your data stays yours; the hosted plane holds zero end-user PII.</p>
         <h4>Self-host (open source, Apache-2.0)</h4>
-        <p>Run the stack yourself with Docker Compose (Postgres + the control plane). A bootstrap key is seeded from the <code>ZELO_BOOTSTRAP_API_KEY</code> environment variable, or an operator can mint per-tenant keys at runtime via the admin API. See the <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">repository</a>.</p>
+        <p>Run the stack yourself with Docker Compose (Postgres + the control plane). The control plane seeds no key by default; mint per-tenant keys by signing up at the dashboard (<code>/app</code>) or via the operator admin API, or set <code>ZELO_BOOTSTRAP_API_KEY</code> to seed one. See the <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">repository</a>.</p>
         <div class="callout">
           A key looks like <code>zk_live_8f1d6c2e…</code>. Zelo stores only its SHA-256 hash — the raw value is shown to you exactly once, so store it in your secret manager. Treat it like a password.
         </div>
@@ -618,8 +618,8 @@ Authorization: Bearer zk_live_8f1d6c2e...   <span class="tok-com"># "Bearer " pr
 <section class="cta-section">
   <div class="wrap">
     <h2>Ready to integrate?</h2>
-    <p class="lede">Get a key for the hosted control plane, or self-host the open-source stack. Either way, ship LGPD consent + erasure with a tamper-evident trail — and zero PII in Zelo.</p>
-    <a class="btn" href="/#waitlist">Request access</a>
+    <p class="lede">Get a key for the hosted control plane, or self-host the open-source stack. Either way, ship LGPD consent + erasure with a tamper-evident trail — and zero end-user PII in Zelo.</p>
+    <a class="btn" href="/app/">Get your API key</a>
     <a class="btn btn-ghost" href="https://github.com/thgrcarvalho/zelo" rel="noopener">View on GitHub</a>
   </div>
 </section>

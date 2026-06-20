@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the Zelo Postgres backup nightly
+
+[Timer]
+# 03:07 UTC daily (off-peak; the odd minute avoids the top-of-hour cron stampede).
+OnCalendar=*-*-* 03:07:00 UTC
+# Catch up if the box was asleep/off at the scheduled time.
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
