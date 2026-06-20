@@ -15,6 +15,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,11 +32,13 @@ import static org.assertj.core.api.Assertions.assertThat;
         properties = "zelo.api-key=test-api-key")
 class ZeloClientIntegrationTest {
 
-    record Recorded(String method, String path, String query, String auth, String body) {
+    record Recorded(String method, String path, String query, String auth, String idempotencyKey, String body) {
     }
 
     private static HttpServer stub;
     private static final List<Recorded> received = new CopyOnWriteArrayList<>();
+    // First POST /v1/requests for "flaky" 503s, the rest succeed — to exercise retry.
+    private static final AtomicInteger flakyDeletionAttempts = new AtomicInteger();
 
     @DynamicPropertySource
     static void zeloApi(DynamicPropertyRegistry registry) throws IOException {
@@ -46,7 +49,8 @@ class ZeloClientIntegrationTest {
             String query = exchange.getRequestURI().getQuery();
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             received.add(new Recorded(method, path, query,
-                    exchange.getRequestHeaders().getFirst("Authorization"), body));
+                    exchange.getRequestHeaders().getFirst("Authorization"),
+                    exchange.getRequestHeaders().getFirst("Idempotency-Key"), body));
 
             int[] status = {200};
             String json = route(method, path, query, body, status);
@@ -101,6 +105,11 @@ class ZeloClientIntegrationTest {
                     + "\"history\":[]}";
         }
         if (method.equals("POST") && path.equals("/v1/requests")) {
+            // One transient 5xx before success, to prove requestDeletion() retries.
+            if (body.contains("\"external_id\":\"flaky\"") && flakyDeletionAttempts.getAndIncrement() == 0) {
+                status[0] = 503;
+                return "{\"status\":503,\"message\":\"upstream blip\"}";
+            }
             status[0] = 201;
             return "{\"id\":\"req-1\",\"type\":\"DELETE\",\"status\":\"RECEIVED\"}";
         }
@@ -197,6 +206,27 @@ class ZeloClientIntegrationTest {
         assertThat(last("POST", "/v1/requests").body())
                 .contains("\"external_id\":\"alice\"")
                 .contains("\"type\":\"DELETE\"");
+    }
+
+    @Test
+    void retriesADeletionRequestOnTransientFailureWithAStableKey() {
+        // The first POST /v1/requests for "flaky" 503s; the LGPD erasure trigger must not
+        // drop on a transient blip — the client retries and the call still succeeds.
+        ZeloRequest req = zelo.requestDeletion("flaky");
+
+        assertThat(req.id()).isEqualTo("req-1");
+        assertThat(req.status()).isEqualTo(ZeloRequestStatus.RECEIVED);
+
+        List<Recorded> attempts = received.stream()
+                .filter(r -> r.method().equals("POST") && r.path().equals("/v1/requests")
+                        && r.body().contains("\"external_id\":\"flaky\""))
+                .toList();
+        assertThat(attempts).hasSize(2);   // the 503, then the 201
+        // Both attempts carry the SAME idempotency key, so the server dedupes the replay
+        // instead of opening a duplicate deletion request.
+        assertThat(attempts.get(0).idempotencyKey())
+                .isNotBlank()
+                .isEqualTo(attempts.get(1).idempotencyKey());
     }
 
     @Test
