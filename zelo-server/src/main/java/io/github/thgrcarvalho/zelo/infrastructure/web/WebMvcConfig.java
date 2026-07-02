@@ -1,8 +1,10 @@
 package io.github.thgrcarvalho.zelo.infrastructure.web;
 
+import io.github.thgrcarvalho.idempotency.IdempotencyStore;
 import io.github.thgrcarvalho.zelo.infrastructure.security.AccountPrincipalArgumentResolver;
 import io.github.thgrcarvalho.zelo.infrastructure.security.ApiKeyAuthFilter;
 import io.github.thgrcarvalho.zelo.infrastructure.security.CurrentApiKeyArgumentResolver;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -12,6 +14,17 @@ import java.util.List;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
+
+    /**
+     * Replaces the idempotency starter's default store (it backs off via
+     * {@code @ConditionalOnMissingBean}) with one that never memoizes a 429:
+     * a quota refusal must stay retryable once the quota window resets, not
+     * be replayed from cache for the key's whole TTL.
+     */
+    @Bean
+    IdempotencyStore idempotencyStore() {
+        return new QuotaAwareIdempotencyStore();
+    }
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
