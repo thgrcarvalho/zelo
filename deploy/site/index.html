@@ -340,6 +340,22 @@
   ul.feature-list li strong{color:var(--ink)}
   ul.feature-list li code{font-family:var(--font-mono);font-size:.88em;background:var(--glass);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px;color:var(--ink)}
 
+  /* ===== PRICING ===== */
+  .pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:28px}
+  .price-card{border:1px solid var(--border);background:rgba(255,255,255,.028);border-radius:13px;padding:22px;display:flex;flex-direction:column}
+  .price-card.pro{border-color:rgba(139,108,255,.5);box-shadow:0 0 0 1px rgba(139,108,255,.12) inset}
+  .price-card .lbl{font-family:var(--font-mono);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .price-card .price{font-family:var(--font-display);font-weight:700;font-size:30px;letter-spacing:-.02em;color:var(--ink);margin:10px 0 2px}
+  .price-card .per{font-family:var(--font-mono);font-size:12.5px;font-weight:400;color:var(--muted);letter-spacing:0}
+  .price-list{list-style:none;padding:0;margin:14px 0 18px}
+  .price-list li{position:relative;padding-left:22px;margin-bottom:9px;color:var(--muted);font-size:14.5px;line-height:1.55}
+  .price-list li::before{content:"";position:absolute;left:2px;top:8px;width:8px;height:8px;border-radius:2px;background:var(--accent)}
+  .price-list li strong{color:var(--ink)}
+  .price-list code{font-family:var(--font-mono);font-size:.88em;background:var(--glass);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .price-cta{margin-top:auto;justify-content:center}
+  .price-fine{font-family:var(--font-mono);font-size:12.5px;color:var(--faint);margin:16px 0 0}
+  @media (max-width:880px){.pricing-grid{grid-template-columns:1fr}}
+
   /* ===== CTA BAND ===== */
   .cta-band{
     position:relative;
@@ -719,9 +735,53 @@ GET https://api.zelocompliance.com/v1/audit/verify
         </div>
       </section>
 
-      <!-- 07 — CTA BAND -->
+      <!-- 07 — PRICING -->
+      <section class="section" id="pricing">
+        <div class="sec-head">
+          <div class="kicker"><span class="seq">07</span><span class="grad">Pricing</span></div>
+          <h2>Free where it should be. Paid when we run it for you.</h2>
+        </div>
+        <p class="sec-body">
+          The code is Apache-2.0 either way — hosting is what you pay for, and only past a real free tier.
+        </p>
+        <div class="pricing-grid">
+          <div class="price-card">
+            <div class="lbl">Self-host</div>
+            <div class="price">R$0 <span class="per">forever</span></div>
+            <ul class="price-list">
+              <li><code>docker compose up</code> on your infra</li>
+              <li>Everything, no gates, no phone-home</li>
+              <li>Apache-2.0 — read every line first</li>
+            </ul>
+            <a class="btn btn-ghost price-cta" href="https://github.com/thgrcarvalho/zelo" rel="noopener">Clone the repo</a>
+          </div>
+          <div class="price-card">
+            <div class="lbl">Hosted — Free</div>
+            <div class="price">R$0 <span class="per">/ month</span></div>
+            <ul class="price-list">
+              <li>500 subjects &amp; 2,000 audit events / month</li>
+              <li>3 API keys · signed webhooks · verify endpoint</li>
+              <li>We email you at 80% and 100% — writes are only refused past 3× a limit, and <strong>erasure is never blocked</strong></li>
+            </ul>
+            <a class="btn btn-ghost price-cta" href="/app/">Start free</a>
+          </div>
+          <div class="price-card pro">
+            <div class="lbl">Hosted — Pro</div>
+            <div class="price">R$79 <span class="per">/ month · launch price</span></div>
+            <ul class="price-list">
+              <li>Unmetered subjects, events, and keys</li>
+              <li>Same API, same proof chain — nothing to migrate</li>
+              <li>Upgrade from the dashboard when the free tier pinches</li>
+            </ul>
+            <a class="btn btn-primary price-cta" href="/app/">Get your API key</a>
+          </div>
+        </div>
+        <p class="price-fine">Prices in BRL, billed monthly via card, cancel anytime. Cancelling drops you to the free tier — your data and audit chain stay intact.</p>
+      </section>
+
+      <!-- 08 — CTA BAND -->
       <section class="section" id="start">
-        <div class="kicker"><span class="seq">07</span><span class="grad">Get started</span></div>
+        <div class="kicker"><span class="seq">08</span><span class="grad">Get started</span></div>
         <div class="cta-band">
           <h2>Self-host free, or use the managed cloud.</h2>
           <p>
@@ -747,6 +807,7 @@ GET https://api.zelocompliance.com/v1/audit/verify
           <a href="https://github.com/thgrcarvalho/zelo" rel="noopener">github.com/thgrcarvalho/zelo</a>
           <a href="https://github.com/thgrcarvalho/zelo/blob/main/INTEGRATING.md" rel="noopener">INTEGRATING.md</a>
           <a href="/docs/">Docs</a>
+          <a href="#pricing">Pricing</a>
           <a href="/legal/termos.html">Terms</a>
           <a href="/legal/privacidade.html">Privacy</a>
           <a href="/legal/dpa.html">DPA</a>
