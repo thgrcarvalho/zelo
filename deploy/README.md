@@ -198,6 +198,26 @@ Apply the edge rate-limit on the **api** vhost (`/etc/nginx/sites-available/zelo
 public `/v1/audit/verify/demo` and a real-client-IP `X-Forwarded-For` so the in-app
 limiter can't be spoofed — then `sudo nginx -t && sudo systemctl reload nginx`.
 
+## 8. Billing (Asaas) — optional, fail-closed until configured
+
+Everything ships disabled: with `ZELO_ASAAS_API_KEY` blank the checkout endpoint
+returns 503, and with `ZELO_ASAAS_WEBHOOK_TOKEN` blank every webhook delivery is
+refused (503). To enable, set in `~/zelo/.env`:
+
+```sh
+ZELO_ASAAS_API_KEY=<asaas api key>            # sandbox key while testing
+ZELO_ASAAS_BASE_URL=https://api-sandbox.asaas.com/v3   # drop for production
+ZELO_ASAAS_WEBHOOK_TOKEN=<random shared secret>
+ZELO_BILLING_PRO_PRICE_BRL=79.00
+```
+
+then `docker compose up -d zelo-server`. In the Asaas dashboard, register the
+webhook URL `https://zelocompliance.com/account/billing/webhook/asaas` with the
+same token in the *access token* field (events: payments + subscriptions).
+**No nginx change is needed** — the existing `/account/` proxy on the dashboard
+vhost already routes the webhook path; it is public but token-gated in the app
+(constant-time compare, 401 on mismatch).
+
 ## Verify
 
 ```sh

@@ -161,3 +161,11 @@ zelo:
       subjects-per-month: ${ZELO_PLANS_FREE_SUBJECTS_PER_MONTH:500}
       audit-events-per-month: ${ZELO_PLANS_FREE_AUDIT_EVENTS_PER_MONTH:2000}
       api-keys: ${ZELO_PLANS_FREE_API_KEYS:3}
+  billing:
+    # Asaas payment integration. Fail-closed while unset: blank api key = checkout
+    # 503; blank webhook token = every webhook delivery 503. Sandbox base:
+    # https://api-sandbox.asaas.com/v3
+    asaas-api-key: ${ZELO_ASAAS_API_KEY:}
+    asaas-base-url: ${ZELO_ASAAS_BASE_URL:https://api.asaas.com/v3}
+    webhook-token: ${ZELO_ASAAS_WEBHOOK_TOKEN:}
+    pro-price-brl: ${ZELO_BILLING_PRO_PRICE_BRL:79.00}
