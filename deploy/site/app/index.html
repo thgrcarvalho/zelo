@@ -74,6 +74,12 @@
   .card .sub{color:var(--muted);font-size:14px;margin:0 0 16px}
   .auth-card{max-width:440px}
   .card.narrow{max-width:560px}
+  /* Logged-out screens: center the auth moment instead of pinning a small card
+     to the left of a wide empty canvas. :has() no-ops on old browsers -> the
+     previous left-aligned layout remains as the graceful fallback. */
+  .page:has(.auth-card){text-align:center}
+  .page:has(.auth-card) .lead{margin-left:auto;margin-right:auto}
+  .page:has(.auth-card) .auth-card{margin-left:auto;margin-right:auto;text-align:left}
 
   /* forms */
   .field{margin:0 0 15px}
