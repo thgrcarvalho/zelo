@@ -10,7 +10,7 @@
 // The Spring Boot plugin itself is applied only by the two application modules.
 
 plugins {
-    id 'org.springframework.boot' version '3.4.5' apply false
+    id 'org.springframework.boot' version '4.1.0' apply false
     id 'io.spring.dependency-management' version '1.1.7' apply false
     // Publishing the starter to Maven Central (Central Portal). Applied only by
     // the starter module; see zelo-spring-boot-starter/build.gradle.
@@ -39,7 +39,7 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom 'org.springframework.boot:spring-boot-dependencies:3.4.5'
+            mavenBom 'org.springframework.boot:spring-boot-dependencies:4.1.0'
         }
     }
 
