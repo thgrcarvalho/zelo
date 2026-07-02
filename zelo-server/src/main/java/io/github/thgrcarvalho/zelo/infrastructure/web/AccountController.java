@@ -3,6 +3,7 @@ package io.github.thgrcarvalho.zelo.infrastructure.web;
 import io.github.thgrcarvalho.ratelimit.RateLimit;
 import io.github.thgrcarvalho.zelo.application.AccountService;
 import io.github.thgrcarvalho.zelo.application.ApiKeyProvisioningService;
+import io.github.thgrcarvalho.zelo.application.UsageService;
 import io.github.thgrcarvalho.zelo.application.error.ForbiddenException;
 import io.github.thgrcarvalho.zelo.application.error.ServiceUnavailableException;
 import io.github.thgrcarvalho.zelo.domain.account.Account;
@@ -50,13 +51,15 @@ public class AccountController {
 
     private final AccountService accounts;
     private final ApiKeyProvisioningService provisioning;
+    private final UsageService usage;
     private final SessionTokens sessionTokens;
     private final ZeloProperties properties;
 
     public AccountController(AccountService accounts, ApiKeyProvisioningService provisioning,
-                            SessionTokens sessionTokens, ZeloProperties properties) {
+                            UsageService usage, SessionTokens sessionTokens, ZeloProperties properties) {
         this.accounts = accounts;
         this.provisioning = provisioning;
+        this.usage = usage;
         this.sessionTokens = sessionTokens;
         this.properties = properties;
     }
@@ -186,6 +189,15 @@ public class AccountController {
         provisioning.revokeForAccount(principal.id(), id);
     }
 
+    // --- Session + ACTIVE: usage ---------------------------------------------------
+
+    /** Current month is computed live; history is the stored finished months. */
+    @GetMapping("/usage")
+    public UsageResponse usage(AccountPrincipal principal) {
+        requireActive(principal);
+        return new UsageResponse(usage.currentMonth(principal.id()), usage.history(principal.id(), 12));
+    }
+
     // --- Authorization guards ----------------------------------------------------
 
     private static void requireActive(AccountPrincipal principal) {
@@ -238,6 +250,10 @@ public class AccountController {
     public record LoginRequest(
             @NotBlank @Email @Size(max = 320) String email,
             @NotBlank String password) {
+    }
+
+    public record UsageResponse(
+            UsageService.MonthlyUsage currentMonth, List<UsageService.MonthlyUsage> history) {
     }
 
     public record VerifyEmailRequest(@NotBlank @Size(max = 512) String token) {
