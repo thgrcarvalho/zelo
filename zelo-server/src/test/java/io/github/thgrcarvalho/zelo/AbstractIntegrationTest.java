@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
@@ -15,7 +16,16 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * container only starts when {@code -DrunIntegrationTests=true}, the same flag
  * the {@link IntegrationTest} gate keys off, so the default build stays
  * Docker-free.
+ *
+ * <p>The outbox poller is slowed to a crawl here for EVERY cached context: all
+ * contexts share the one database, so each context's poller races to claim the
+ * same outbox rows — which made {@code WebhookDeliveryIntegrationTest} flaky as
+ * the number of cached contexts grew (a foreign context's poller claims the
+ * event; its failed attempts burn the retry budget with backoff past the test's
+ * await). A test that exercises real delivery overrides this in its own
+ * {@code @TestPropertySource} (subclass properties win over this one).</p>
  */
+@TestPropertySource(properties = "outbox.poll-interval-ms=600000")
 public abstract class AbstractIntegrationTest {
 
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");

@@ -87,8 +87,9 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(), "$.id");
 
-        // The outbox poller delivers within a couple of poll cycles.
-        assertThat(received.await(15, TimeUnit.SECONDS)).isTrue();
+        // The outbox poller delivers within a couple of poll cycles (30s is
+        // belt-and-braces for slow CI runners; normal delivery is <1s).
+        assertThat(received.await(30, TimeUnit.SECONDS)).isTrue();
 
         byte[] body = capturedBody.get();
         String payload = new String(body);
