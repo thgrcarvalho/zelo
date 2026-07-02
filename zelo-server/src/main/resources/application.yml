@@ -19,11 +19,12 @@ spring:
     locations: classpath:db/migration
   task:
     scheduling:
-      # Three @Scheduled jobs share the scheduler — the 60s DSR overdue sweep, the hourly
-      # token purge, and the outbox health check. Give it enough threads that a slow or
-      # stuck job can never delay the others. Bump if more background jobs are added.
+      # Four @Scheduled jobs share the scheduler — the 60s DSR overdue sweep, the hourly
+      # token purge, the outbox health check, and the nightly usage rollup. Give it
+      # enough threads that a slow or stuck job can never delay the others. Bump if
+      # more background jobs are added.
       pool:
-        size: 3
+        size: 4
   jackson:
     # The public API uses snake_case (external_id, purpose_key, legal_basis).
     property-naming-strategy: SNAKE_CASE
