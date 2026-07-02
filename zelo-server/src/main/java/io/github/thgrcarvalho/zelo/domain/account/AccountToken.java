@@ -44,24 +44,36 @@ public class AccountToken {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** The pending address an {@code EMAIL_CHANGE} token confirms; null for other purposes. */
+    @Column(name = "new_email", updatable = false)
+    private String newEmail;
+
     protected AccountToken() {
         // for JPA
     }
 
     private AccountToken(UUID id, UUID accountId, TokenPurpose purpose, String tokenHash,
-                         Instant expiresAt, Instant createdAt) {
+                         Instant expiresAt, Instant createdAt, String newEmail) {
         this.id = id;
         this.accountId = accountId;
         this.purpose = purpose;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
         this.createdAt = createdAt;
+        this.newEmail = newEmail;
     }
 
     /** Issue a fresh token for {@code accountId} and {@code purpose}, storing only the hash. */
     public static AccountToken issue(UUID accountId, TokenPurpose purpose, String tokenHash,
                                      Instant expiresAt, Instant createdAt) {
-        return new AccountToken(UUID.randomUUID(), accountId, purpose, tokenHash, expiresAt, createdAt);
+        return new AccountToken(UUID.randomUUID(), accountId, purpose, tokenHash, expiresAt, createdAt, null);
+    }
+
+    /** Issue an {@code EMAIL_CHANGE} token carrying the pending new address. */
+    public static AccountToken issueEmailChange(UUID accountId, String tokenHash,
+                                                Instant expiresAt, Instant createdAt, String newEmail) {
+        return new AccountToken(UUID.randomUUID(), accountId, TokenPurpose.EMAIL_CHANGE,
+                tokenHash, expiresAt, createdAt, newEmail);
     }
 
     public boolean isExpired(Instant now) {
@@ -94,5 +106,9 @@ public class AccountToken {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getNewEmail() {
+        return newEmail;
     }
 }

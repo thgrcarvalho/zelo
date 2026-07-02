@@ -1,6 +1,7 @@
 package io.github.thgrcarvalho.zelo.infrastructure.email;
 
 import io.github.thgrcarvalho.zelo.application.email.AccountEmailRequested;
+import io.github.thgrcarvalho.zelo.application.email.EmailChangedNotice;
 import io.github.thgrcarvalho.zelo.application.email.EmailMessage;
 import io.github.thgrcarvalho.zelo.application.email.EmailSender;
 import org.slf4j.Logger;
@@ -37,10 +38,32 @@ public class AccountMailer {
         switch (event.purpose()) {
             case EMAIL_VERIFICATION -> sendVerification(event.email(), event.rawToken());
             case PASSWORD_RESET -> sendPasswordReset(event.email(), event.rawToken());
+            case EMAIL_CHANGE -> sendEmailChange(event.email(), event.rawToken());
             // Statement switch isn't exhaustiveness-checked: fail loud if a new purpose
             // is added without a template here, rather than silently dropping its email.
             default -> throw new IllegalStateException("No email template for purpose " + event.purpose());
         }
+    }
+
+    /**
+     * Heads-up to the OLD address after a completed email change. Careful with the
+     * advice: by the time this sends, the swap is committed, so "Forgot password?"
+     * with this (old) address is a silent no-op — the two recourses that actually
+     * work are replying to support and a still-open signed-in dashboard session.
+     */
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onEmailChangedNotice(EmailChangedNotice notice) {
+        send(notice.oldEmail(), "Your Zelo account email was changed",
+                "The login email for your Zelo account was just changed to "
+                        + notice.newEmail() + ".\n\n"
+                        + "If you made this change, no action is needed.\n\n"
+                        + "If you did NOT make this change, your password is compromised. "
+                        + "REPLY TO THIS EMAIL immediately so we can freeze and recover the "
+                        + "account — a password reset with this (old) address no longer works, "
+                        + "because it is no longer the account's login. If you still have the "
+                        + "dashboard open and signed in, you can also change the email straight "
+                        + "back yourself: " + links.appUrl());
     }
 
     private void sendVerification(String to, String rawToken) {
@@ -49,6 +72,15 @@ public class AccountMailer {
                         + "Confirm this email address to activate your account and start issuing API keys:\n\n"
                         + links.verifyUrl(rawToken) + "\n\n"
                         + "This link expires soon. If you didn't sign up for Zelo, you can ignore this email.");
+    }
+
+    private void sendEmailChange(String to, String rawToken) {
+        send(to, "Confirm your new Zelo email",
+                "A request was made to move a Zelo account to this email address.\n\n"
+                        + "Confirm it here:\n\n"
+                        + links.emailChangeUrl(rawToken) + "\n\n"
+                        + "This link expires soon and nothing changes until you confirm. "
+                        + "If you don't recognize this, just ignore this email.");
     }
 
     private void sendPasswordReset(String to, String rawToken) {

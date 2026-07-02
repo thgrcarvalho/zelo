@@ -7,5 +7,7 @@ package io.github.thgrcarvalho.zelo.domain.account;
  */
 public enum TokenPurpose {
     EMAIL_VERIFICATION,
-    PASSWORD_RESET
+    PASSWORD_RESET,
+    /** Confirms control of a NEW address before the account's email is swapped to it. */
+    EMAIL_CHANGE
 }

@@ -36,7 +36,8 @@ public class Account {
     @Id
     private UUID id;
 
-    @Column(name = "email", nullable = false, unique = true, updatable = false)
+    // Updatable for exactly one flow: the token-confirmed email change below.
+    @Column(name = "email", nullable = false, unique = true)
     private String email;
 
     @Column(name = "password_hash", nullable = false)
@@ -133,6 +134,15 @@ public class Account {
             candidate = this.passwordChangedAt.plusMillis(1);
         }
         this.passwordChangedAt = candidate;
+    }
+
+    /**
+     * Swap the login email. Called only after a single-use token delivered to the
+     * NEW address was redeemed — the delivery itself is the verification, so the
+     * account's verified status is untouched.
+     */
+    public void changeEmail(String newEmail) {
+        this.email = newEmail;
     }
 
     public UUID getId() {

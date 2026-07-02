@@ -1,6 +1,7 @@
 package io.github.thgrcarvalho.zelo.application;
 
 import io.github.thgrcarvalho.zelo.application.email.AccountEmailRequested;
+import io.github.thgrcarvalho.zelo.application.email.EmailChangedNotice;
 import io.github.thgrcarvalho.zelo.application.email.EmailSender;
 import io.github.thgrcarvalho.zelo.application.error.BadRequestException;
 import io.github.thgrcarvalho.zelo.application.error.ResourceNotFoundException;
@@ -243,6 +244,62 @@ public class AccountService {
         accounts.save(account);
         accounts.clearFailedLogins(account.getId());
         log.info("Password reset completed for account {} — sessions invalidated", account.getId());
+    }
+
+    /**
+     * Begin an email change. Requires the current password (a stolen session alone
+     * can't redirect the account), and confirms control of the NEW address: the
+     * single-use link is delivered there and nothing changes until it's redeemed.
+     * Enumeration-safe on the target — a taken address is silently a no-op behind
+     * the controller's uniform 202. Short TTL (the reset-token window).
+     */
+    @Transactional
+    public void requestEmailChange(UUID accountId, String newEmail, String password) {
+        if (!emailSender.isConfigured()) {
+            throw new ServiceUnavailableException("Email change is temporarily unavailable");
+        }
+        Instant now = Instant.now();
+        Account account = require(accountId);
+        if (!Passwords.verify(password, account.getPasswordHash())) {
+            throw new UnauthorizedException("Wrong password");
+        }
+        String normalized = normalizeEmail(newEmail);
+        if (normalized.equals(account.getEmail())) {
+            throw new BadRequestException("That is already this account's email");
+        }
+        if (throttled(accountId, TokenPurpose.EMAIL_CHANGE, now)
+                || accounts.findByEmail(normalized).isPresent()) {
+            return; // uniform 202 upstream: don't reveal whether the address is taken
+        }
+        tokens.invalidateOutstanding(accountId, TokenPurpose.EMAIL_CHANGE, now);
+        String raw = RawKeys.generateToken();
+        tokens.save(AccountToken.issueEmailChange(accountId, Hashes.sha256Hex(raw),
+                now.plus(Duration.ofMinutes(mail.getResetTtlMinutes())), now, normalized));
+        publishEmail(normalized, raw, TokenPurpose.EMAIL_CHANGE);
+        log.info("Email change requested for account {}", accountId);
+    }
+
+    /**
+     * Complete an email change: redeem the token, re-check the address is still
+     * free (a signup can race the link), swap, and notify the OLD address after
+     * commit so a hijack can't happen silently. Sessions stay valid — the password
+     * (and its watermark) are untouched.
+     */
+    @Transactional
+    public Account confirmEmailChange(String rawToken) {
+        Instant now = Instant.now();
+        AccountToken token = redeem(rawToken, TokenPurpose.EMAIL_CHANGE, now);
+        Account account = require(token.getAccountId());
+        String target = token.getNewEmail();
+        if (target == null || accounts.findByEmail(target).isPresent()) {
+            throw new BadRequestException("This link is invalid or has expired");
+        }
+        String previous = account.getEmail();
+        account.changeEmail(target);
+        accounts.save(account);
+        events.publishEvent(new EmailChangedNotice(previous, target));
+        log.info("Email changed for account {}", account.getId());
+        return account;
     }
 
     /**

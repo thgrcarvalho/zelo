@@ -141,6 +141,32 @@ public class AccountController {
     }
 
     /**
+     * Begin an email change (session + password re-auth). Uniform 202 whether or
+     * not the target address was available — the confirmation link goes to the
+     * NEW address and nothing changes until it is redeemed.
+     */
+    @PostMapping("/email-change/request")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @RateLimit(requests = 10, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
+    public Ack requestEmailChange(AccountPrincipal principal,
+                                  @Valid @RequestBody EmailChangeRequest request) {
+        requireActive(principal);
+        accounts.requestEmailChange(principal.id(), request.newEmail(), request.password());
+        return Ack.CHECK_EMAIL;
+    }
+
+    /** Redeem an email-change link (public — the token is the credential) and log in. */
+    @PostMapping("/email-change/confirm")
+    @RateLimit(requests = 20, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
+    public MeResponse confirmEmailChange(@Valid @RequestBody VerifyEmailRequest request,
+                                         HttpServletResponse response) {
+        requireAuthEnabled();
+        Account account = accounts.confirmEmailChange(request.token());
+        issueSession(response, account);
+        return MeResponse.from(account, properties.getBilling().isEnabled());
+    }
+
+    /**
      * Delete the signed-in account (operator self-erasure under LGPD). The account's
      * API keys are revoked + detached so the audit chains they scope survive as
      * evidence; the account record (email + password hash) is erased and the session
@@ -280,6 +306,11 @@ public class AccountController {
                     plans.getFree().getSubjectsPerMonth(), plans.getFree().getAuditEventsPerMonth(),
                     plans.getFree().getApiKeys(), plans.getHardCapMultiplier());
         }
+    }
+
+    public record EmailChangeRequest(
+            @NotBlank @Email @Size(max = 320) String newEmail,
+            @NotBlank String password) {
     }
 
     public record VerifyEmailRequest(@NotBlank @Size(max = 512) String token) {
