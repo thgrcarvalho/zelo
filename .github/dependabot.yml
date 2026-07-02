@@ -13,6 +13,17 @@ updates:
         patterns:
           - "org.springframework.boot*"
           - "io.spring.dependency-management*"
+    ignore:
+      # Boot 4 / Framework 7 is a deliberate migration project, not a routine
+      # bump — and springdoc 3.x is built against Boot 4 (2.8.x is the line
+      # that matches Boot 3.4/3.5). Majors stay out until that migration;
+      # minor/patch updates on the current lines keep flowing.
+      - dependency-name: "org.springframework.boot*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "io.spring.dependency-management*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springdoc:*"
+        update-types: ["version-update:semver-major"]
     labels:
       - dependencies
 
