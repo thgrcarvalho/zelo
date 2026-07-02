@@ -263,6 +263,18 @@ compliance-health indicator.
 
 ---
 
+## 9. Plans & limits (hosted)
+
+Hosted free-plan accounts get **500 subjects** and **2,000 audit events** per calendar
+month (UTC), and **3 active API keys**. Enforcement is soft: the account is emailed at
+80%/100% of a limit, and only past **3× a limit** do new subjects / consent grants get an
+explicit `429` (the `ZeloClient` does not retry 4xx, so nothing double-applies).
+**`requestDeletion(...)` and consent WITHDRAW are never blocked** — a data subject's
+rights outrank any quota. Live usage and the PRO upgrade (unmetered, same API) are in
+the dashboard at `/app/`. Self-hosted deployments have no limits unless configured.
+
+---
+
 ## `ZeloClient` reference
 
 | Method | Calls | Notes |

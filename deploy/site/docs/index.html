@@ -258,6 +258,7 @@
         <h4>Reference</h4>
         <ul>
           <li><a href="#auth">Auth &amp; errors</a></li>
+          <li><a href="#plans">Plans &amp; limits</a></li>
           <li><a href="#api-reference">API reference</a></li>
           <li><a href="#faq">FAQ</a></li>
         </ul>
@@ -503,12 +504,28 @@ Authorization: Bearer zk_live_8f1d6c2e...   <span class="tok-com"># "Bearer " pr
             <tr><td><code>401</code></td><td>Missing, invalid, or revoked API key.</td></tr>
             <tr><td><code>404</code></td><td>Referenced resource (request, subject, purpose) doesn't exist or isn't yours.</td></tr>
             <tr><td><code>409</code></td><td>Conflict — e.g. an illegal DSR transition, or two writes racing the same record (retry).</td></tr>
+            <tr><td><code>429</code></td><td>Rate limit, or a free-plan hard cap (see <a href="#plans">Plans &amp; limits</a>). Not retryable until usage or the window changes.</td></tr>
             <tr><td><code>500</code></td><td>Unexpected server error (details are logged server-side only).</td></tr>
           </tbody>
         </table>
         </div>
         <h4>Rate limits &amp; idempotency</h4>
         <p>Write endpoints are limited to <strong>100 requests/minute</strong> per (IP + path) and accept a stable <code>Idempotency-Key</code> header so retries don't double-apply. Reads are unthrottled.</p>
+
+        <h2 id="plans">Plans &amp; limits <a class="anchor" href="#plans" aria-hidden="true">#</a></h2>
+        <p>Hosted accounts start on the <strong>free plan</strong>: <strong>500 subjects</strong> and <strong>2,000 audit events</strong> per calendar month (UTC), and <strong>3 active API keys</strong>. Self-hosted deployments have no plans unless you configure them.</p>
+        <p>Enforcement is deliberately soft, because compliance writes matter more than quotas:</p>
+        <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Usage</th><th>What happens</th></tr></thead>
+          <tbody>
+            <tr><td>80% / 100% of a limit</td><td>We email the account. Writes keep working.</td></tr>
+            <tr><td>Past 3× a limit</td><td>New subjects / consent grants get an explicit <code>429</code> with a clear message — never a silent drop.</td></tr>
+            <tr><td>Always</td><td><strong>Deletion requests and consent withdrawals are never blocked</strong> — a data subject's rights outrank any quota. The 4th active key returns <code>409</code>.</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>Live usage, limits, and the PRO upgrade live in <a href="/app/">your dashboard</a> (<code>GET /account/usage</code> behind your session). PRO is unmetered — same API, nothing to migrate.</p>
 
         <h2 id="api-reference">API reference <a class="anchor" href="#api-reference" aria-hidden="true">#</a></h2>
         <p>Base URL (hosted): <code>https://api.zelocompliance.com</code>. All bodies are JSON in snake_case.</p>
