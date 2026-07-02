@@ -19,25 +19,17 @@ everything below — read it alongside this guide.
 
 ## 1. Resolve the starter
 
-The starter is published to your local Maven repository. In the **Zelo** repo:
-
-```bash
-./gradlew :zelo-spring-boot-starter:publishToMavenLocal
-```
-
-Then in **your app** (`build.gradle`), make sure `mavenLocal()` is a repository and add
-the dependency:
+The starter is on Maven Central. In **your app** (`build.gradle`):
 
 ```groovy
-repositories {
-    mavenLocal()      // resolves zelo-spring-boot-starter
-    mavenCentral()
-}
-
 dependencies {
     implementation 'io.github.thgrcarvalho:zelo-spring-boot-starter:0.1.0'
 }
 ```
+
+To iterate against unpublished starter changes from a local Zelo checkout, run
+`./gradlew :zelo-spring-boot-starter:publishToMavenLocal` in the Zelo repo and put
+`mavenLocal()` before `mavenCentral()` in your `repositories { }`.
 
 The starter is built against Spring Web as `compileOnly`, so it adds no Spring
 version of its own — it uses the web stack your app already has, and it brings

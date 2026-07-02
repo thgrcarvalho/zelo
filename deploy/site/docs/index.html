@@ -322,16 +322,12 @@
             <strong>Add the dependency</strong> (you also supply Spring Web yourself):
             <div class="code-card cb">
               <div class="code-head"><span class="traffic"><i></i><i></i><i></i></span><span class="code-title">build.gradle</span></div>
-<pre><code><span class="tok-key">repositories</span> {
-    mavenLocal()       <span class="tok-com">// until the starter is on Maven Central</span>
-    mavenCentral()
-}
-<span class="tok-key">dependencies</span> {
+<pre><code><span class="tok-key">dependencies</span> {
     implementation <span class="tok-str">'io.github.thgrcarvalho:zelo-spring-boot-starter:0.1.0'</span>
     implementation <span class="tok-str">'org.springframework.boot:spring-boot-starter-web'</span> <span class="tok-com">// required by you</span>
 }</code></pre>
             </div>
-            <p style="color:var(--muted);font-size:14px;margin:8px 0 0;">Not on Maven Central yet: in the Zelo repo run <code>./gradlew :zelo-spring-boot-starter:publishToMavenLocal</code>, then add <code>mavenLocal()</code> to your <code>repositories { }</code> until it's published.</p>
+            <p style="color:var(--muted);font-size:14px;margin:8px 0 0;">Resolves from Maven Central.</p>
           </li>
           <li>
             <strong>Configure it</strong> (<code>application.yml</code> or <code>application.properties</code>):

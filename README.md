@@ -56,15 +56,9 @@ curl localhost:8080/v1/audit/verify -H 'Authorization: demo-key'   # {"ok":true,
 
 ## Add the starter to your app
 
-The starter isn't on Maven Central yet — publish it to your local Maven repo from
-this repo first (`./gradlew :zelo-spring-boot-starter:publishToMavenLocal`), then:
+The starter is on [Maven Central](https://central.sonatype.com/artifact/io.github.thgrcarvalho/zelo-spring-boot-starter):
 
 ```groovy
-repositories {
-    mavenLocal()       // until zelo-spring-boot-starter is on Maven Central
-    mavenCentral()
-}
-
 dependencies {
     implementation 'io.github.thgrcarvalho:zelo-spring-boot-starter:0.1.0'
 }
