@@ -19,12 +19,12 @@ spring:
     locations: classpath:db/migration
   task:
     scheduling:
-      # Four @Scheduled jobs share the scheduler — the 60s DSR overdue sweep, the hourly
-      # token purge, the outbox health check, and the nightly usage rollup. Give it
-      # enough threads that a slow or stuck job can never delay the others. Bump if
-      # more background jobs are added.
+      # Five @Scheduled jobs share the scheduler — the 60s DSR overdue sweep, the hourly
+      # token purge, the outbox health check, the nightly usage rollup, and the hourly
+      # usage alerts. Give it enough threads that a slow or stuck job can never delay
+      # the others. Bump if more background jobs are added.
       pool:
-        size: 4
+        size: 5
   jackson:
     # The public API uses snake_case (external_id, purpose_key, legal_basis).
     property-naming-strategy: SNAKE_CASE
@@ -150,3 +150,14 @@ zelo:
     # so it can't drop a row still counted by the cooldown / daily cap).
     token-retention-hours: ${ZELO_MAIL_TOKEN_RETENTION_HOURS:48}
     token-purge-interval-ms: ${ZELO_MAIL_TOKEN_PURGE_INTERVAL_MS:3600000}
+  plans:
+    # Free-tier ceilings. Ceilings drive the 80%/100% alert emails; a /v1 write is
+    # refused (429) only past ceiling x hard-cap-multiplier. PRO accounts and keys
+    # without an account (operator/bootstrap/internal) are never metered, and DSR
+    # (erasure) writes are never quota-gated at all.
+    hard-cap-multiplier: ${ZELO_PLANS_HARD_CAP_MULTIPLIER:3}
+    alert-interval-ms: ${ZELO_PLANS_ALERT_INTERVAL_MS:3600000}
+    free:
+      subjects-per-month: ${ZELO_PLANS_FREE_SUBJECTS_PER_MONTH:500}
+      audit-events-per-month: ${ZELO_PLANS_FREE_AUDIT_EVENTS_PER_MONTH:2000}
+      api-keys: ${ZELO_PLANS_FREE_API_KEYS:3}
