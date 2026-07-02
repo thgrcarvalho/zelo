@@ -4,6 +4,7 @@ import io.github.thgrcarvalho.idempotency.Idempotent;
 import io.github.thgrcarvalho.ratelimit.RateLimit;
 import io.github.thgrcarvalho.zelo.application.ConsentReport;
 import io.github.thgrcarvalho.zelo.application.ConsentService;
+import io.github.thgrcarvalho.zelo.application.PlanEnforcementService;
 import io.github.thgrcarvalho.zelo.domain.consent.ConsentAction;
 import io.github.thgrcarvalho.zelo.infrastructure.security.ApiKeyPrincipal;
 import jakarta.validation.Valid;
@@ -26,15 +27,20 @@ import java.util.Map;
 public class ConsentController {
 
     private final ConsentService consentService;
+    private final PlanEnforcementService enforcement;
 
-    public ConsentController(ConsentService consentService) {
+    public ConsentController(ConsentService consentService, PlanEnforcementService enforcement) {
         this.consentService = consentService;
+        this.enforcement = enforcement;
     }
 
     @PostMapping
     @RateLimit(requests = 100, window = "1m", keyStrategy = RateLimit.KeyStrategy.IP_AND_PATH)
     @Idempotent
     public ConsentReportResponse record(ApiKeyPrincipal principal, @Valid @RequestBody RecordConsentRequest request) {
+        // WITHDRAW is a data-subject right and is never quota-gated (see the service).
+        enforcement.checkConsentWrite(
+                principal.id(), request.externalId(), request.action() == ConsentAction.WITHDRAW);
         ConsentReport report = consentService.record(
                 principal.id(), request.externalId(), request.purposeKey(),
                 request.action(), request.source(), request.metadata());

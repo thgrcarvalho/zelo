@@ -103,6 +103,65 @@ public class JdbcUsageStats {
         jdbc.update(ROLLUP_SQL, month, s, e, s, e, s, e, s, e);
     }
 
+    public record KeyPlan(UUID accountId, String plan) {
+    }
+
+    public record MeteredAccount(UUID id, String email) {
+    }
+
+    /**
+     * The plan context of an API key: its account id and that account's plan.
+     * {@code accountId} is null for operator/bootstrap keys — never metered.
+     * Returns null when the key does not exist.
+     */
+    public KeyPlan planForKey(UUID apiKeyId) {
+        List<KeyPlan> rows = jdbc.query("""
+                        SELECT k.account_id, a.plan FROM api_keys k
+                          LEFT JOIN accounts a ON a.id = k.account_id
+                         WHERE k.id = ?
+                        """,
+                (rs, i) -> new KeyPlan(rs.getObject("account_id", UUID.class), rs.getString("plan")),
+                apiKeyId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public boolean subjectExists(UUID apiKeyId, String externalId) {
+        Boolean exists = jdbc.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM subjects WHERE api_key_id = ? AND external_id = ?)",
+                Boolean.class, apiKeyId, externalId);
+        return Boolean.TRUE.equals(exists);
+    }
+
+    public long activeKeyCount(UUID accountId) {
+        Long n = jdbc.queryForObject(
+                "SELECT count(*) FROM api_keys WHERE account_id = ? AND revoked_at IS NULL",
+                Long.class, accountId);
+        return n == null ? 0 : n;
+    }
+
+    /** ACTIVE accounts on the FREE plan — the population the usage-alert job meters. */
+    public List<MeteredAccount> activeFreeAccounts() {
+        return jdbc.query("SELECT id, email FROM accounts WHERE status = 'ACTIVE' AND plan = 'FREE'",
+                (rs, i) -> new MeteredAccount(rs.getObject("id", UUID.class), rs.getString("email")));
+    }
+
+    public boolean alertAlreadySent(UUID accountId, LocalDate month, String metric, int thresholdPct) {
+        Boolean sent = jdbc.queryForObject("""
+                        SELECT EXISTS (SELECT 1 FROM usage_alerts
+                          WHERE account_id = ? AND month = ? AND metric = ? AND threshold_pct = ?)
+                        """,
+                Boolean.class, accountId, month, metric, thresholdPct);
+        return Boolean.TRUE.equals(sent);
+    }
+
+    public void recordAlert(UUID accountId, LocalDate month, String metric, int thresholdPct) {
+        jdbc.update("""
+                        INSERT INTO usage_alerts (account_id, month, metric, threshold_pct)
+                        VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING
+                        """,
+                accountId, month, metric, thresholdPct);
+    }
+
     /** Stored months for an account, newest first. */
     public List<RollupRow> history(UUID accountId, int limit) {
         return jdbc.query("""

@@ -3,7 +3,9 @@ package io.github.thgrcarvalho.zelo.infrastructure.web;
 import io.github.thgrcarvalho.ratelimit.RateLimit;
 import io.github.thgrcarvalho.zelo.application.AccountService;
 import io.github.thgrcarvalho.zelo.application.ApiKeyProvisioningService;
+import io.github.thgrcarvalho.zelo.application.PlanEnforcementService;
 import io.github.thgrcarvalho.zelo.application.UsageService;
+import io.github.thgrcarvalho.zelo.domain.account.Plan;
 import io.github.thgrcarvalho.zelo.application.error.ForbiddenException;
 import io.github.thgrcarvalho.zelo.application.error.ServiceUnavailableException;
 import io.github.thgrcarvalho.zelo.domain.account.Account;
@@ -52,14 +54,17 @@ public class AccountController {
     private final AccountService accounts;
     private final ApiKeyProvisioningService provisioning;
     private final UsageService usage;
+    private final PlanEnforcementService enforcement;
     private final SessionTokens sessionTokens;
     private final ZeloProperties properties;
 
     public AccountController(AccountService accounts, ApiKeyProvisioningService provisioning,
-                            UsageService usage, SessionTokens sessionTokens, ZeloProperties properties) {
+                            UsageService usage, PlanEnforcementService enforcement,
+                            SessionTokens sessionTokens, ZeloProperties properties) {
         this.accounts = accounts;
         this.provisioning = provisioning;
         this.usage = usage;
+        this.enforcement = enforcement;
         this.sessionTokens = sessionTokens;
         this.properties = properties;
     }
@@ -168,6 +173,8 @@ public class AccountController {
     public CreatedApiKeyResponse createKey(AccountPrincipal principal,
                                            @Valid @RequestBody CreateKeyRequest request) {
         requireActive(principal);
+        Account account = accounts.require(principal.id());
+        enforcement.checkKeyCreation(account.getId(), account.getPlan());
         // Self-issued keys carry no billing tier; an operator sets that out-of-band.
         ApiKeyProvisioningService.Minted minted = provisioning.create(
                 principal.id(), request.name(), request.webhookUrl(), request.webhookSecret(), null);
@@ -191,11 +198,19 @@ public class AccountController {
 
     // --- Session + ACTIVE: usage ---------------------------------------------------
 
-    /** Current month is computed live; history is the stored finished months. */
+    /**
+     * Current month is computed live; history is the stored finished months.
+     * {@code limits} is present only on the FREE plan (PRO is unmetered).
+     */
     @GetMapping("/usage")
     public UsageResponse usage(AccountPrincipal principal) {
         requireActive(principal);
-        return new UsageResponse(usage.currentMonth(principal.id()), usage.history(principal.id(), 12));
+        Account account = accounts.require(principal.id());
+        return new UsageResponse(
+                account.getPlan().name(),
+                account.getPlan() == Plan.FREE ? PlanLimitsResponse.from(properties.getPlans()) : null,
+                usage.currentMonth(principal.id()),
+                usage.history(principal.id(), 12));
     }
 
     // --- Authorization guards ----------------------------------------------------
@@ -253,7 +268,18 @@ public class AccountController {
     }
 
     public record UsageResponse(
+            String plan, PlanLimitsResponse limits,
             UsageService.MonthlyUsage currentMonth, List<UsageService.MonthlyUsage> history) {
+    }
+
+    public record PlanLimitsResponse(
+            long subjectsPerMonth, long auditEventsPerMonth, int apiKeys, int hardCapMultiplier) {
+
+        static PlanLimitsResponse from(ZeloProperties.Plans plans) {
+            return new PlanLimitsResponse(
+                    plans.getFree().getSubjectsPerMonth(), plans.getFree().getAuditEventsPerMonth(),
+                    plans.getFree().getApiKeys(), plans.getHardCapMultiplier());
+        }
     }
 
     public record VerifyEmailRequest(@NotBlank @Size(max = 512) String token) {
@@ -286,10 +312,12 @@ public class AccountController {
     }
 
     /** The current account, as the dashboard sees itself. Never includes the password hash. */
-    public record MeResponse(UUID id, String email, String orgName, String status, boolean emailVerified) {
+    public record MeResponse(
+            UUID id, String email, String orgName, String status, boolean emailVerified, String plan) {
 
         static MeResponse from(Account a) {
-            return new MeResponse(a.getId(), a.getEmail(), a.getOrgName(), a.getStatus().name(), a.isVerified());
+            return new MeResponse(a.getId(), a.getEmail(), a.getOrgName(), a.getStatus().name(),
+                    a.isVerified(), a.getPlan().name());
         }
     }
 

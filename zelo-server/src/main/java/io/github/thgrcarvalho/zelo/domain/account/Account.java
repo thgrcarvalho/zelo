@@ -49,6 +49,15 @@ public class Account {
     @Column(name = "status", nullable = false)
     private AccountStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan", nullable = false)
+    private Plan plan = Plan.FREE;
+
+    /** Billing lifecycle slot; stays NONE until a payment provider drives it. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan_status", nullable = false)
+    private PlanStatus planStatus = PlanStatus.NONE;
+
     /** Optimistic-lock guard: a concurrent second verify/password-change loses with an optimistic-lock failure. */
     @Version
     @Column(name = "version", nullable = false)
@@ -137,6 +146,14 @@ public class Account {
 
     public AccountStatus getStatus() {
         return status;
+    }
+
+    public Plan getPlan() {
+        return plan;
+    }
+
+    public PlanStatus getPlanStatus() {
+        return planStatus;
     }
 
     public Instant getCreatedAt() {

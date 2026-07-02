@@ -16,6 +16,7 @@ public class ZeloProperties {
     private final Auth auth = new Auth();
     private final Mail mail = new Mail();
     private final Showcase showcase = new Showcase();
+    private final Plans plans = new Plans();
 
     public Dsr getDsr() {
         return dsr;
@@ -39,6 +40,72 @@ public class ZeloProperties {
 
     public Showcase getShowcase() {
         return showcase;
+    }
+
+    public Plans getPlans() {
+        return plans;
+    }
+
+    /**
+     * Free-tier ceilings and the hard-cap multiplier. Ceilings drive the 80%/100%
+     * usage-alert emails; a /v1 write is refused (429) only past ceiling × multiplier.
+     * PRO accounts and keys without an account are never metered.
+     */
+    public static class Plans {
+
+        private final Free free = new Free();
+
+        /** A write is hard-refused only beyond ceiling × this. */
+        @Min(1)
+        private int hardCapMultiplier = 3;
+
+        public Free getFree() {
+            return free;
+        }
+
+        public int getHardCapMultiplier() {
+            return hardCapMultiplier;
+        }
+
+        public void setHardCapMultiplier(int hardCapMultiplier) {
+            this.hardCapMultiplier = hardCapMultiplier;
+        }
+
+        public static class Free {
+
+            @Min(1)
+            private long subjectsPerMonth = 500;
+
+            @Min(1)
+            private long auditEventsPerMonth = 2000;
+
+            @Min(1)
+            private int apiKeys = 3;
+
+            public long getSubjectsPerMonth() {
+                return subjectsPerMonth;
+            }
+
+            public void setSubjectsPerMonth(long subjectsPerMonth) {
+                this.subjectsPerMonth = subjectsPerMonth;
+            }
+
+            public long getAuditEventsPerMonth() {
+                return auditEventsPerMonth;
+            }
+
+            public void setAuditEventsPerMonth(long auditEventsPerMonth) {
+                this.auditEventsPerMonth = auditEventsPerMonth;
+            }
+
+            public int getApiKeys() {
+                return apiKeys;
+            }
+
+            public void setApiKeys(int apiKeys) {
+                this.apiKeys = apiKeys;
+            }
+        }
     }
 
     /** Data-subject-request settings. */
