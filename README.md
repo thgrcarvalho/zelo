@@ -159,7 +159,6 @@ enforce that discipline; the mutable aggregates use JPA. Webhooks are delivered 
 a transactional outbox (so an event is queued in the same commit as the request it
 belongs to) and signed with HMAC-SHA256. Built on these dogfooded libraries:
 [`spring-boot-starter-outbox`](https://github.com/thgrcarvalho/spring-boot-starter-outbox),
-[`pix-webhook-validator`](https://github.com/thgrcarvalho/pix-webhook-validator),
 [`spring-boot-starter-idempotency`](https://github.com/thgrcarvalho/spring-boot-starter-idempotency),
 [`spring-boot-starter-rate-limit`](https://github.com/thgrcarvalho/spring-boot-starter-rate-limit).
 

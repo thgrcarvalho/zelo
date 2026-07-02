@@ -1,7 +1,6 @@
 package io.github.thgrcarvalho.zelo.starter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.thgrcarvalho.pixwebhook.PixWebhookValidator;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -35,17 +34,14 @@ public class ZeloAutoConfiguration {
     @Bean
     @ConditionalOnProperty(prefix = "zelo", name = "webhook-secret")
     @ConditionalOnMissingBean
-    public PixWebhookValidator zeloWebhookValidator(ZeloProperties properties) {
-        return PixWebhookValidator.builder()
-                .hmacSecret(properties.getWebhookSecret())
-                .signatureHeader("X-Zelo-Signature")
-                .build();
+    public ZeloWebhookValidator zeloWebhookValidator(ZeloProperties properties) {
+        return new ZeloWebhookValidator(properties.getWebhookSecret());
     }
 
     @Bean
     @ConditionalOnProperty(prefix = "zelo", name = "webhook-secret")
     @ConditionalOnMissingBean
-    public ZeloWebhookController zeloWebhookController(PixWebhookValidator validator,
+    public ZeloWebhookController zeloWebhookController(ZeloWebhookValidator validator,
                                                       ZeloWebhookDispatcher dispatcher,
                                                       ZeloClient client, ObjectMapper objectMapper,
                                                       ZeloProperties properties) {

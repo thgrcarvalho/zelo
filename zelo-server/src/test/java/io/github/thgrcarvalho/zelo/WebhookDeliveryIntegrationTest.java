@@ -2,9 +2,8 @@ package io.github.thgrcarvalho.zelo;
 
 import com.jayway.jsonpath.JsonPath;
 import com.sun.net.httpserver.HttpServer;
-import io.github.thgrcarvalho.pixwebhook.PixWebhookRequest;
-import io.github.thgrcarvalho.pixwebhook.PixWebhookValidator;
 import io.github.thgrcarvalho.zelo.domain.crypto.Hashes;
+import io.github.thgrcarvalho.zelo.infrastructure.webhook.WebhookSigner;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,13 +16,11 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.net.InetSocketAddress;
-import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -100,18 +97,9 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
         assertThat(payload).contains("\"event\":\"dsr.delete.requested\"").contains("\"sentAt\":");
         assertThat(capturedEvent.get()).isEqualTo("dsr.delete.requested");
 
-        // The signature validates with pix-webhook-validator (the receiver's library).
-        PixWebhookValidator validator = PixWebhookValidator.builder()
-                .hmacSecret(SECRET)
-                .signatureHeader("X-Zelo-Signature")
-                .build();
-        PixWebhookRequest webhook = PixWebhookRequest.builder()
-                .sourceIp("127.0.0.1")
-                .header("X-Zelo-Signature", capturedSignature.get())
-                .body(body)
-                .receivedAt(Instant.now())
-                .build();
-        assertThatCode(() -> validator.validate(webhook)).doesNotThrowAnyException();
+        // The delivered header carries exactly the signature contract the starter's
+        // validator accepts (pinned on the starter side by ZeloWebhookValidatorTest).
+        assertThat(capturedSignature.get()).isEqualTo(WebhookSigner.sign(SECRET, body));
 
         // After successful delivery the request advances RECEIVED → DISPATCHED.
         assertThat(awaitStatus(id, "DISPATCHED")).isEqualTo("DISPATCHED");

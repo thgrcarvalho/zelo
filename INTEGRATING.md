@@ -30,7 +30,7 @@ the dependency:
 
 ```groovy
 repositories {
-    mavenLocal()      // resolves zelo-spring-boot-starter + its pix-webhook-validator
+    mavenLocal()      // resolves zelo-spring-boot-starter
     mavenCentral()
 }
 
@@ -40,8 +40,8 @@ dependencies {
 ```
 
 The starter is built against Spring Web as `compileOnly`, so it adds no Spring
-version of its own — it uses the web stack your app already has. It pulls in
-`pix-webhook-validator` (runtime) for HMAC signature checking.
+version of its own — it uses the web stack your app already has, and it brings
+no runtime dependencies of its own (HMAC signature checking is built in).
 
 ---
 

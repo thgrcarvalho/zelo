@@ -8,15 +8,9 @@ This file is the operator runbook for the parts that need credentials.
 
 ## Dependency closure (all on Central)
 
-The published POM declares one runtime dependency:
-
-```
-io.github.thgrcarvalho:pix-webhook-validator:0.1.0
-```
-
-This artifact **is already on Maven Central**
-(`https://repo1.maven.org/maven2/io/github/thgrcarvalho/pix-webhook-validator/0.1.0/`),
-so an external consumer adding
+The published POM declares **no runtime dependencies**: HMAC signature checking
+is native (`ZeloWebhookValidator`), and the Spring bits are `compileOnly` (the
+consumer's own web stack is used). An external consumer adding
 `implementation 'io.github.thgrcarvalho:zelo-spring-boot-starter:0.1.0'` resolves
 cleanly. There is **no dependency blocker** for the starter release — only the
 credentials/GPG setup below.

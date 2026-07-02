@@ -1,17 +1,13 @@
 package io.github.thgrcarvalho.zelo.infrastructure.webhook;
 
-import io.github.thgrcarvalho.pixwebhook.PixWebhookRequest;
-import io.github.thgrcarvalho.pixwebhook.PixWebhookValidator;
 import org.junit.jupiter.api.Test;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.HexFormat;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 class WebhookSignerTest {
 
@@ -37,41 +33,14 @@ class WebhookSignerTest {
         assertThat(WebhookSigner.sign("secret", body)).isEqualTo(expected);
     }
 
-    @Test
-    void isAcceptedByPixWebhookValidator() {
-        // Proves the server signature validates with the same library the integrator
-        // starter uses on the receiving side.
-        byte[] body = "{\"requestId\":\"r1\",\"externalId\":\"u1\"}".getBytes(StandardCharsets.UTF_8);
-        String signature = WebhookSigner.sign("shared-secret", body);
-
-        PixWebhookValidator validator = PixWebhookValidator.builder()
-                .hmacSecret("shared-secret")
-                .signatureHeader("X-Zelo-Signature")
-                .build();
-        PixWebhookRequest request = PixWebhookRequest.builder()
-                .sourceIp("127.0.0.1")
-                .header("X-Zelo-Signature", signature)
-                .body(body)
-                .receivedAt(Instant.now())
-                .build();
-
-        assertThatCode(() -> validator.validate(request)).doesNotThrowAnyException();
-    }
+    // The receiving-side contract ("sha256=" + lowercase hex HMAC-SHA256 over the raw
+    // body, X-Zelo-Signature header) is pinned on the starter side by
+    // ZeloWebhookValidatorTest, which accepts exactly the format asserted above.
 
     @Test
-    void rejectsATamperedBody() {
-        String signature = WebhookSigner.sign("shared-secret", "{\"a\":1}".getBytes(StandardCharsets.UTF_8));
-        PixWebhookValidator validator = PixWebhookValidator.builder()
-                .hmacSecret("shared-secret")
-                .signatureHeader("X-Zelo-Signature")
-                .build();
-        PixWebhookRequest tampered = PixWebhookRequest.builder()
-                .sourceIp("127.0.0.1")
-                .header("X-Zelo-Signature", signature)
-                .body("{\"a\":2}".getBytes(StandardCharsets.UTF_8))
-                .receivedAt(Instant.now())
-                .build();
-
-        assertThatCode(() -> validator.validate(tampered)).hasMessageContaining("signature");
+    void aTamperedBodyProducesADifferentSignature() {
+        String original = WebhookSigner.sign("shared-secret", "{\"a\":1}".getBytes(StandardCharsets.UTF_8));
+        String tampered = WebhookSigner.sign("shared-secret", "{\"a\":2}".getBytes(StandardCharsets.UTF_8));
+        assertThat(tampered).isNotEqualTo(original);
     }
 }

@@ -10,9 +10,6 @@ dependencies {
     compileOnly 'org.springframework.boot:spring-boot-autoconfigure'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    // HMAC signature validation (dogfooded).
-    implementation 'io.github.thgrcarvalho:pix-webhook-validator:0.1.0'
-
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-web'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
