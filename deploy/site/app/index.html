@@ -125,6 +125,21 @@
   .badge.ok{color:var(--success);border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.1)}
   .badge.warn{color:var(--warn);border-color:rgba(245,181,68,.4);background:rgba(245,181,68,.1)}
   .badge.off{color:var(--muted)}
+  .badge.plan{color:var(--cyan);border-color:rgba(79,216,230,.4);background:rgba(79,216,230,.08)}
+
+  /* plan & usage */
+  .plan-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 4px}
+  .plan-head .btn{margin-left:auto}
+  .usage{margin-top:14px}
+  .u-row{margin:0 0 13px}
+  .u-row:last-child{margin-bottom:2px}
+  .u-label{display:flex;justify-content:space-between;gap:12px;font-family:var(--font-mono);font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .u-label b{color:var(--ink);font-weight:500}
+  .u-bar{height:6px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);overflow:hidden}
+  .u-fill{height:100%;border-radius:99px;background:var(--cyan);transition:width .3s}
+  .u-fill.hot{background:var(--warn)}
+  .u-fill.over{background:var(--danger)}
+  .u-note{font-size:12.5px;color:var(--muted);margin:10px 0 0}
 
   /* key reveal — the dashboard's hero moment (cyan = proof/verified) */
   .reveal{position:relative;border:1px solid rgba(79,216,230,.4);border-left:3px solid var(--cyan);
@@ -569,6 +584,8 @@
       '<h1 class="title">API keys</h1>' +
       '<p class="lead">Issue keys for <strong>' + esc(me.org_name) + "</strong>, point them at your webhook, " +
       'and revoke them when you rotate. New here? Start with the <a href="/docs/">integration guide</a>.</p>' +
+      '<div class="card" id="plan-card"><h2>Plan &amp; usage</h2>' +
+        '<p class="empty">Loading usage…</p></div>' +
       '<div class="card">' +
         "<h2>Create a key</h2>" +
         '<p class="sub">The raw key is shown once, at creation. Store it immediately — it is never displayed again.</p>' +
@@ -581,7 +598,77 @@
       "</div>";
 
     wireCreateForm();
+    loadUsage();
     loadKeys();
+  }
+
+  // --- active: plan & usage ----------------------------------------------------
+
+  function loadUsage() {
+    api("/usage").then(renderUsage).catch(function () {
+      var host = document.getElementById("plan-card");
+      if (host) host.innerHTML = "<h2>Plan &amp; usage</h2>" +
+        '<p class="empty">Usage is unavailable right now — the rest of the dashboard still works.</p>';
+    });
+  }
+
+  function renderUsage(usage) {
+    var host = document.getElementById("plan-card");
+    if (!host) return;
+
+    var head = '<div class="plan-head"><h2 style="margin:0">Plan &amp; usage</h2>' +
+      '<span class="badge plan">' + esc(usage.plan) + "</span>";
+    if (me.plan_status === "OVERDUE") {
+      head += '<span class="badge warn">PAYMENT OVERDUE</span>';
+    }
+    if (usage.plan === "FREE" && me.billing_enabled) {
+      head += '<button class="btn btn-sm" id="upgrade">Upgrade to PRO</button>';
+    }
+    head += "</div>";
+
+    var body;
+    if (usage.plan === "FREE" && usage.limits) {
+      var m = usage.current_month;
+      body = '<div class="usage">' +
+        usageBar("subjects this month", m.subjects, usage.limits.subjects_per_month) +
+        usageBar("audit events this month", m.audit_events, usage.limits.audit_events_per_month) +
+        "</div>" +
+        '<p class="u-note">Past a limit, writes keep working and we email you; they are only refused beyond ' +
+        esc(usage.limits.hard_cap_multiplier) + "× the limit. Deletion requests and consent withdrawals are never blocked.</p>";
+    } else {
+      body = '<p class="u-note">Unmetered plan — this month: <b>' + esc(usage.current_month.subjects) +
+        "</b> subjects, <b>" + esc(usage.current_month.audit_events) + "</b> audit events.</p>";
+    }
+
+    host.innerHTML = head + body;
+    var up = document.getElementById("upgrade");
+    if (up) up.addEventListener("click", startCheckout);
+  }
+
+  function usageBar(label, used, limit) {
+    var pct = limit > 0 ? Math.round(used * 100 / limit) : 0;
+    var cls = pct >= 100 ? " over" : pct >= 80 ? " hot" : "";
+    return '<div class="u-row"><div class="u-label"><span>' + esc(label) + "</span>" +
+      "<span><b>" + esc(used) + "</b> / " + esc(limit) + " · " + pct + "%</span></div>" +
+      '<div class="u-bar"><div class="u-fill' + cls + '" style="width:' + Math.min(pct, 100) + '%"></div></div></div>';
+  }
+
+  function startCheckout() {
+    var btn = document.getElementById("upgrade");
+    if (btn) { btn.disabled = true; btn.textContent = "Opening checkout…"; }
+    api("/billing/checkout", { method: "POST" }).then(function (data) {
+      if (data && data.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        toast("Checkout did not return a payment link — try again", true);
+        if (btn) { btn.disabled = false; btn.textContent = "Upgrade to PRO"; }
+      }
+    }).catch(function (err) {
+      fail(err);
+      if (btn) { btn.disabled = false; btn.textContent = "Upgrade to PRO"; }
+      // A 409 means another tab finished the upgrade — pull fresh state.
+      if (err && err.status === 409) refresh();
+    });
   }
 
   function createForm() {

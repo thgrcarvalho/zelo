@@ -96,7 +96,7 @@ public class AccountController {
         requireAuthEnabled();
         Account account = accounts.verifyEmail(request.token());
         issueSession(response, account);
-        return MeResponse.from(account);
+        return MeResponse.from(account, properties.getBilling().isEnabled());
     }
 
     @PostMapping("/login")
@@ -104,7 +104,7 @@ public class AccountController {
         requireAuthEnabled();
         Account account = accounts.authenticate(request.email(), request.password());
         issueSession(response, account);
-        return MeResponse.from(account);
+        return MeResponse.from(account, properties.getBilling().isEnabled());
     }
 
     /** Begin a password reset. Always 204 (enumeration-safe); emails a link when the account exists. */
@@ -137,7 +137,7 @@ public class AccountController {
 
     @GetMapping("/me")
     public MeResponse me(AccountPrincipal principal) {
-        return MeResponse.from(accounts.require(principal.id()));
+        return MeResponse.from(accounts.require(principal.id()), properties.getBilling().isEnabled());
     }
 
     /**
@@ -313,11 +313,12 @@ public class AccountController {
 
     /** The current account, as the dashboard sees itself. Never includes the password hash. */
     public record MeResponse(
-            UUID id, String email, String orgName, String status, boolean emailVerified, String plan) {
+            UUID id, String email, String orgName, String status, boolean emailVerified,
+            String plan, String planStatus, boolean billingEnabled) {
 
-        static MeResponse from(Account a) {
+        static MeResponse from(Account a, boolean billingEnabled) {
             return new MeResponse(a.getId(), a.getEmail(), a.getOrgName(), a.getStatus().name(),
-                    a.isVerified(), a.getPlan().name());
+                    a.isVerified(), a.getPlan().name(), a.getPlanStatus().name(), billingEnabled);
         }
     }
 
