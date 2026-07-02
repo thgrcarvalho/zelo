@@ -32,6 +32,18 @@ public class EmailLinks {
         return appFragment("reset", rawToken);
     }
 
+    public String emailChangeUrl(String rawToken) {
+        return appFragment("email-change", rawToken);
+    }
+
+    /** The dashboard itself — for emails that point at a screen, not a token flow. */
+    public String appUrl() {
+        if (base == null) {
+            throw new IllegalStateException("zelo.mail.base-url is not configured");
+        }
+        return base + "/app/";
+    }
+
     private String appFragment(String kind, String rawToken) {
         if (base == null) {
             throw new IllegalStateException("zelo.mail.base-url is not configured");

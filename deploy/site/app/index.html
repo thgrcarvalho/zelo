@@ -595,11 +595,43 @@
       '<div class="card">' +
         "<h2>Your keys</h2>" +
         '<div id="keys" class="tbl-wrap"><p class="empty">Loading keys…</p></div>' +
+      "</div>" +
+      '<div class="card">' +
+        "<h2>Account</h2>" +
+        '<p class="sub">Signed in as <strong>' + esc(me.email) + "</strong></p>" +
+        '<details class="wh"><summary>Change email</summary>' +
+          '<div class="inline-form">' +
+            '<div class="field"><label for="ce-email">New email</label>' +
+            '<input id="ce-email" type="email" autocomplete="off"></div>' +
+            '<div class="field"><label for="ce-pass">Current password</label>' +
+            '<input id="ce-pass" type="password" autocomplete="current-password"></div>' +
+            '<p class="hint">We send a confirmation link to the new address — nothing changes until you click it.</p>' +
+            '<div class="btn-row"><button class="btn" id="ce-submit">Send confirmation</button></div>' +
+          "</div>" +
+        "</details>" +
       "</div>";
 
     wireCreateForm();
+    wireEmailChange();
     loadUsage();
     loadKeys();
+  }
+
+  function wireEmailChange() {
+    document.getElementById("ce-submit").addEventListener("click", function () {
+      var btn = this;
+      var email = document.getElementById("ce-email").value.trim();
+      var pass = document.getElementById("ce-pass").value;
+      if (!email || !pass) { toast("Fill in the new email and your password", true); return; }
+      btn.disabled = true;
+      api("/email-change/request", { method: "POST", body: { new_email: email, password: pass } })
+        .then(function (data) {
+          toast(data && data.message ? data.message : "Check the new address for a confirmation link");
+          document.getElementById("ce-email").value = "";
+          document.getElementById("ce-pass").value = "";
+          btn.disabled = false;
+        }).catch(function (err) { fail(err); btn.disabled = false; });
+    });
   }
 
   // --- active: plan & usage ----------------------------------------------------
@@ -845,15 +877,31 @@
   // A URL fragment never reaches the server (not in nginx logs, not in Referer).
   // Read it, strip it from the address bar/history at once, then route.
   function boot() {
-    var m = (location.hash || "").match(/^#(verify|reset)=(.+)$/);
+    var m = (location.hash || "").match(/^#(verify|reset|email-change)=(.+)$/);
     if (m) {
       var kind = m[1];
       var token = decodeURIComponent(m[2]);
       history.replaceState(null, "", location.pathname + location.search);
       if (kind === "verify") { renderVerifyLanding(token); return; }
       if (kind === "reset") { renderResetPassword(token); return; }
+      if (kind === "email-change") { confirmEmailChange(token); return; }
     }
     refresh();
+  }
+
+  // Landing for the emailed change link (#email-change=<token>): redeem, then
+  // land on the dashboard as the (now re-addressed) account.
+  function confirmEmailChange(token) {
+    app.innerHTML = '<div class="card"><p class="muted">Confirming your new email…</p></div>';
+    api("/email-change/confirm", { method: "POST", body: { token: token } }).then(function (data) {
+      me = data;
+      toast("Email updated to " + data.email);
+      render();
+    }).catch(function () {
+      app.innerHTML =
+        '<div class="card narrow"><p class="muted">This confirmation link is invalid, already used, ' +
+        'or expired. Request the change again from your dashboard.</p></div>';
+    });
   }
 
   boot();
