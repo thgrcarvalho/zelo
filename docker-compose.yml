@@ -74,6 +74,10 @@ services:
       ZELO_SMTP_PORT: ${ZELO_SMTP_PORT:-465}
       ZELO_SMTP_USERNAME: ${ZELO_SMTP_USERNAME:-resend}
       ZELO_SMTP_PASSWORD: ${ZELO_SMTP_PASSWORD:-}
+      # TLS mode, flipped together: 465 -> SSL=true STARTTLS=false (default),
+      # 587 -> SSL=false STARTTLS=true.
+      ZELO_SMTP_SSL: ${ZELO_SMTP_SSL:-true}
+      ZELO_SMTP_STARTTLS: ${ZELO_SMTP_STARTTLS:-false}
       ZELO_OUTBOX_POLL_MS: "1000"
     # Bind to loopback only: on a host the API is reached via nginx (-> 127.0.0.1:8080),
     # never directly on the public interface. Self-hosters without a proxy still reach

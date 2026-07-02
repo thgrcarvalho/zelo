@@ -41,8 +41,13 @@ spring:
     properties:
       mail:
         smtp:
+          # TLS mode is a provider/port concern: implicit TLS (465, the default)
+          # or STARTTLS (587). Flip both flags together via env, no rebuild.
           ssl:
-            enable: true
+            enable: ${ZELO_SMTP_SSL:true}
+          starttls:
+            enable: ${ZELO_SMTP_STARTTLS:false}
+            required: ${ZELO_SMTP_STARTTLS:false}
           auth: true
           connectiontimeout: 5000
           timeout: 5000
