@@ -78,6 +78,12 @@ services:
       # 587 -> SSL=false STARTTLS=true.
       ZELO_SMTP_SSL: ${ZELO_SMTP_SSL:-true}
       ZELO_SMTP_STARTTLS: ${ZELO_SMTP_STARTTLS:-false}
+      # Billing (Asaas). Blank = disabled/fail-closed; set real values in .env to
+      # turn on paid PRO checkout + the webhook receiver.
+      ZELO_ASAAS_API_KEY: ${ZELO_ASAAS_API_KEY:-}
+      ZELO_ASAAS_BASE_URL: ${ZELO_ASAAS_BASE_URL:-https://api.asaas.com/v3}
+      ZELO_ASAAS_WEBHOOK_TOKEN: ${ZELO_ASAAS_WEBHOOK_TOKEN:-}
+      ZELO_BILLING_PRO_PRICE_BRL: ${ZELO_BILLING_PRO_PRICE_BRL:-79.00}
       ZELO_OUTBOX_POLL_MS: "1000"
     # Bind to loopback only: on a host the API is reached via nginx (-> 127.0.0.1:8080),
     # never directly on the public interface. Self-hosters without a proxy still reach

@@ -17,6 +17,7 @@ public class ZeloProperties {
     private final Mail mail = new Mail();
     private final Showcase showcase = new Showcase();
     private final Plans plans = new Plans();
+    private final Billing billing = new Billing();
 
     public Dsr getDsr() {
         return dsr;
@@ -44,6 +45,66 @@ public class ZeloProperties {
 
     public Plans getPlans() {
         return plans;
+    }
+
+    public Billing getBilling() {
+        return billing;
+    }
+
+    /**
+     * Payment-provider (Asaas) settings. Everything is fail-closed while unset:
+     * a blank api key disables checkout (503), a blank webhook token rejects
+     * every webhook delivery (503).
+     */
+    public static class Billing {
+
+        /** Asaas API key. Blank = billing disabled. */
+        private String asaasApiKey = "";
+
+        /** Asaas REST base; switch to https://api-sandbox.asaas.com/v3 for sandbox. */
+        private String asaasBaseUrl = "https://api.asaas.com/v3";
+
+        /** Shared secret Asaas sends back in the asaas-access-token webhook header. */
+        private String webhookToken = "";
+
+        /** Monthly PRO price in BRL. */
+        private String proPriceBrl = "79.00";
+
+        public boolean isEnabled() {
+            return asaasApiKey != null && !asaasApiKey.isBlank();
+        }
+
+        public String getAsaasApiKey() {
+            return asaasApiKey;
+        }
+
+        public void setAsaasApiKey(String asaasApiKey) {
+            this.asaasApiKey = asaasApiKey;
+        }
+
+        public String getAsaasBaseUrl() {
+            return asaasBaseUrl;
+        }
+
+        public void setAsaasBaseUrl(String asaasBaseUrl) {
+            this.asaasBaseUrl = asaasBaseUrl;
+        }
+
+        public String getWebhookToken() {
+            return webhookToken;
+        }
+
+        public void setWebhookToken(String webhookToken) {
+            this.webhookToken = webhookToken;
+        }
+
+        public String getProPriceBrl() {
+            return proPriceBrl;
+        }
+
+        public void setProPriceBrl(String proPriceBrl) {
+            this.proPriceBrl = proPriceBrl;
+        }
     }
 
     /**

@@ -58,6 +58,13 @@ public class Account {
     @Column(name = "plan_status", nullable = false)
     private PlanStatus planStatus = PlanStatus.NONE;
 
+    /** Payment-provider customer id (Asaas), set on first checkout and reused. */
+    @Column(name = "billing_customer_id", length = 64)
+    private String billingCustomerId;
+
+    @Column(name = "billing_subscription_id", length = 64)
+    private String billingSubscriptionId;
+
     /** Optimistic-lock guard: a concurrent second verify/password-change loses with an optimistic-lock failure. */
     @Version
     @Column(name = "version", nullable = false)
@@ -154,6 +161,39 @@ public class Account {
 
     public PlanStatus getPlanStatus() {
         return planStatus;
+    }
+
+    public String getBillingCustomerId() {
+        return billingCustomerId;
+    }
+
+    public String getBillingSubscriptionId() {
+        return billingSubscriptionId;
+    }
+
+    /** Remembers the provider-side ids minted for this account (checkout path). */
+    public void attachBilling(String customerId, String subscriptionId) {
+        this.billingCustomerId = customerId;
+        this.billingSubscriptionId = subscriptionId;
+    }
+
+    /** Payment confirmed: the account is (or stays) PRO in good standing. */
+    public void activatePro() {
+        this.plan = Plan.PRO;
+        this.planStatus = PlanStatus.ACTIVE;
+    }
+
+    /** A payment is overdue. The plan stays PRO (grace); billing status flags it. */
+    public void markPaymentOverdue() {
+        if (plan == Plan.PRO) {
+            this.planStatus = PlanStatus.OVERDUE;
+        }
+    }
+
+    /** Subscription ended: back to FREE. The subscription id is kept for audit. */
+    public void cancelToFree() {
+        this.plan = Plan.FREE;
+        this.planStatus = PlanStatus.CANCELED;
     }
 
     public Instant getCreatedAt() {
