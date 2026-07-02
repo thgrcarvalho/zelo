@@ -31,7 +31,6 @@ dependencies {
     implementation 'io.github.thgrcarvalho:spring-boot-starter-outbox:0.2.1'   // reliable signed-webhook delivery
     implementation 'io.github.thgrcarvalho:spring-boot-starter-idempotency:0.2.0'
     implementation 'io.github.thgrcarvalho:spring-boot-starter-rate-limit:0.2.0'
-    implementation 'io.github.thgrcarvalho:pix-webhook-validator:0.1.0'        // HMAC patterns (also used by the starter)
 
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
