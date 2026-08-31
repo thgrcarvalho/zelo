@@ -38,6 +38,6 @@ dependencies {
     testImplementation 'org.testcontainers:junit-jupiter:1.21.4'
     testImplementation 'org.testcontainers:postgresql:1.21.4'
     // In-process SMTP for asserting verification/reset emails without real delivery.
-    testImplementation 'com.icegreen:greenmail-junit5:2.1.9'
+    testImplementation 'com.icegreen:greenmail-junit5:2.1.13'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
