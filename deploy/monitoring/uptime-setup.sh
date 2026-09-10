@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 #
-# External uptime monitoring + alerting for the Zelo API, via OCI Health Checks (free,
-# off-box vantage points — so it detects the box being down, which a box-side check
+# External uptime monitoring + alerting for the Zelo API, via OCI Health Checks
+# (off-box vantage points — so it detects the box being down, which a box-side check
 # cannot) + an OCI Monitoring alarm -> Notifications email.
+#
+# *** NOT FREE. *** OCI Health Checks is not an Always Free service: on a Brazilian
+# PAYG tenancy it billed R$1.57 per endpoint per month (+ tax) — the only charge the
+# tenancy ever produced. The stack this creates was torn down on 2026-09-10; a free
+# external monitor (e.g. UptimeRobot) is the recommended alternative. See README.md §1.
+# This script refuses to run unless I_ACCEPT_HEALTH_CHECKS_BILLING=1 is set.
 #
 # Run from a machine with the OCI CLI configured (the workstation), NOT the box —
 # there are no OCI creds on the box by design. Probes the PUBLIC, unauthenticated
@@ -13,6 +19,7 @@
 # console (Monitoring > Alarms) after creation.
 set -euo pipefail
 
+: "${I_ACCEPT_HEALTH_CHECKS_BILLING:?OCI Health Checks is NOT Always Free (~R\$1.57/endpoint/month + tax). Set I_ACCEPT_HEALTH_CHECKS_BILLING=1 to proceed - see deploy/monitoring/README.md section 1}"
 : "${COMPARTMENT_OCID:?set COMPARTMENT_OCID to your compartment OCID}"
 : "${ALERT_EMAIL:=thgrcarvalho@gmail.com}"
 : "${API_HOST:=api.zelocompliance.com}"

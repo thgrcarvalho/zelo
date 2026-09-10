@@ -187,10 +187,14 @@ sudo systemctl start zelo-backup.service                 # take one now
 ## 7. Monitoring, alerting & edge rate-limit
 
 External uptime + alerting and webhook-backlog visibility — see
-**[`monitoring/README.md`](monitoring/README.md)**. From a host with the OCI CLI:
+**[`monitoring/README.md`](monitoring/README.md)**. Uptime is best done with a free
+external monitor (e.g. UptimeRobot) on the public `/v1/audit/verify/demo`. The OCI
+Health Checks stack in `monitoring/uptime-setup.sh` **is billed** (not Always Free —
+it was removed 2026-09-10) and is opt-in only:
 
 ```sh
-COMPARTMENT_OCID=<compartment> ALERT_EMAIL=you@example.com ./deploy/monitoring/uptime-setup.sh
+I_ACCEPT_HEALTH_CHECKS_BILLING=1 COMPARTMENT_OCID=<compartment> ALERT_EMAIL=you@example.com \
+  ./deploy/monitoring/uptime-setup.sh
 ```
 
 Apply the edge rate-limit on the **api** vhost (`/etc/nginx/sites-available/zelo`) per
